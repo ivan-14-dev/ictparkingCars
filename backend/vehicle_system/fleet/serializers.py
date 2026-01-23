@@ -26,3 +26,19 @@ class SystemLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = SystemLog
         fields = ('id', 'action', 'timestamp')
+
+class DailyReportSerializer(serializers.ModelSerializer):
+    driver_username = serializers.CharField(source='driver.username', read_only=True)
+    vehicle_plate = serializers.CharField(source='vehicle.plate_number', read_only=True)
+
+    class Meta:
+        model = DailyReport
+        fields = ('id', 'driver', 'driver_username', 'vehicle', 'vehicle_plate', 'date', 'mileage', 'fuel_used', 'route_taken', 'issues')
+
+class WeeklyReportSerializer(serializers.ModelSerializer):
+    driver_username = serializers.CharField(source='driver.username', read_only=True)
+    vehicle_plate = serializers.CharField(source='vehicle.plate_number', read_only=True)
+
+    class Meta:
+        model = WeeklyReport
+        fields = ('id', 'driver', 'driver_username', 'vehicle', 'vehicle_plate', 'week_start_date', 'summary', 'total_mileage', 'maintenance_needs', 'performance_notes')

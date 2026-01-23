@@ -12,6 +12,7 @@ from accounts.permissions import IsAdmin, IsDriver, IsTechnician, IsAdminOrTechn
 
 class VehicleViewSet(viewsets.ModelViewSet):
 
+    queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
 
     def get_queryset(self):
@@ -44,6 +45,7 @@ class VehicleViewSet(viewsets.ModelViewSet):
 
 class BreakdownViewSet(viewsets.ModelViewSet):
 
+    queryset = Breakdown.objects.all()
     serializer_class = BreakdownSerializer
 
     def get_queryset(self):
@@ -154,6 +156,7 @@ class SystemLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 class DailyReportViewSet(viewsets.ModelViewSet):
 
+    queryset = DailyReport.objects.all()
     serializer_class = DailyReportSerializer
 
     def get_queryset(self):
@@ -196,6 +199,7 @@ class DailyReportViewSet(viewsets.ModelViewSet):
 
 class WeeklyReportViewSet(viewsets.ModelViewSet):
 
+    queryset = WeeklyReport.objects.all()
     serializer_class = WeeklyReportSerializer
 
     def get_queryset(self):
