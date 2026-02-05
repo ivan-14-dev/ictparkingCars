@@ -1,0 +1,41 @@
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Smooth transitions for all interactive elements */
+a, button, input, select, textarea {
+  transition: all 0.2s ease;
+}
+
+/* Better focus states for accessibility */
+button:focus, input:focus, select:focus, textarea:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Responsive text sizing */
+@media (max-width: 768px) {
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+  
+  body {
+    font-size: 0.9375rem;
+  }
+}
+
+/* Prevent layout shift on scroll */
+html {
+  overflow-y: scroll;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
