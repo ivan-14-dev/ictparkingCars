@@ -26,6 +26,24 @@ class VehicleViewSet(ModelViewSet):
             return serializers.VehicleListSerializer
         return serializers.VehicleSerializer
 
+    @action(detail=False, methods=['get'])
+    def my_vehicles(self, request):
+        """Get all vehicles assigned to the current user (driver)"""
+        vehicles = models.Vehicle.objects.filter(assigned_driver=request.user)
+        if not vehicles.exists():
+            return Response({'detail': 'No vehicles assigned'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = serializers.VehicleSerializer(vehicles, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def my_vehicle(self, request):
+        """Get the first vehicle assigned to the current user (driver)"""
+        vehicle = models.Vehicle.objects.filter(assigned_driver=request.user).first()
+        if not vehicle:
+            return Response({'detail': 'No vehicle assigned'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = serializers.VehicleSerializer(vehicle)
+        return Response(serializer.data)
+
     @action(detail=True, methods=['get'])
     def maintenance_history(self, request, pk=None):
         """Get maintenance history for a specific vehicle"""
@@ -33,6 +51,31 @@ class VehicleViewSet(ModelViewSet):
         maintenance_records = models.MaintenanceHistory.objects.filter(vehicle=vehicle)
         serializer = serializers.MaintenanceHistoryListSerializer(maintenance_records, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['patch'])
+    def update_status(self, request, pk=None):
+        """Update only the status of a vehicle"""
+        vehicle = self.get_object()
+        new_status = request.data.get('status')
+        
+        if not new_status:
+            return Response({'error': 'Status is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate status against choices
+        valid_choices = [choice[0] for choice in models.Vehicle.STATUS_CHOICES]
+        if new_status not in valid_choices:
+            return Response(
+                {'error': f'Invalid status. Must be one of: {valid_choices}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        vehicle.status = new_status
+        vehicle.save()
+        
+        return Response({
+            'message': 'Status updated successfully',
+            'status': vehicle.status
+        })
 
 
 # Alternative class-based views (keeping for compatibility)

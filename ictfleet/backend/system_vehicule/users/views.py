@@ -1,7 +1,9 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from .permissions import IsAdminUser
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model, authenticate
 from django.utils.decorators import method_decorator
@@ -25,8 +27,30 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
+class UserSelfUpdateView(generics.UpdateAPIView):
+    serializer_class = serializers.UserSelfUpdateSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_object(self):
+        return self.request.user
+
+
 class UserListView(generics.ListAPIView):
-    queryset = User.objects.all()
+    serializer_class = serializers.UserListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Admins can see all users, others can only see driver list
+        if self.request.user.role == 'admin':
+            return User.objects.all()
+        else:
+            # Non-admins can only see active drivers (for driver assignment)
+            return User.objects.filter(role='driver', is_active=True)
+
+
+class DriverListView(generics.ListAPIView):
+    queryset = User.objects.filter(role='driver', is_active=True)
     serializer_class = serializers.UserListSerializer
     permission_classes = [IsAuthenticated]
 
@@ -34,31 +58,55 @@ class UserListView(generics.ListAPIView):
 class UserCreateView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = serializers.UserCreateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser]
 
-    def perform_create(self, serializer):
-        # Only admins can create users
-        if not self.request.user.role == 'admin':
-            raise serializers.ValidationError("Only administrators can create user accounts")
-        serializer.save()
+    def create(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"UserCreateView.create() called")
+        logger.warning(f"  Request user: {request.user}")
+        logger.warning(f"  User role: {request.user.role}")
+        logger.warning(f"  Request data: {request.data}")
+        logger.warning(f"  Request files: {request.FILES}")
+        
+        try:
+            response = super().create(request, *args, **kwargs)
+            logger.warning(f"User created successfully: {response.data}")
+            return response
+        except Exception as e:
+            logger.error(f"User creation failed: {type(e).__name__}: {str(e)}")
+            # Return a more detailed error response
+            import traceback
+            logger.error(traceback.format_exc())
+            raise
 
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
     serializer_class = serializers.UserUpdateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def update(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"UserDetailView.update() called for user {kwargs.get('pk')}")
+        logger.warning(f"  Request user: {request.user}")
+        logger.warning(f"  User role: {request.user.role}")
+        logger.warning(f"  Request data: {request.data}")
+        logger.warning(f"  Request files: {request.FILES}")
+        
+        try:
+            response = super().update(request, *args, **kwargs)
+            logger.warning(f"Update successful: {response.data}")
+            return response
+        except Exception as e:
+            logger.error(f"Update failed with exception: {type(e).__name__}: {str(e)}")
+            raise
 
     def perform_update(self, serializer):
-        # Only admins can update users
-        if not self.request.user.role == 'admin':
-            raise serializers.ValidationError("Only administrators can update user accounts")
         serializer.save()
-
-    def perform_destroy(self, instance):
-        # Only admins can delete users
-        if not self.request.user.role == 'admin':
-            raise serializers.ValidationError("Only administrators can delete user accounts")
-        instance.delete()
 
 
 @api_view(['POST'])

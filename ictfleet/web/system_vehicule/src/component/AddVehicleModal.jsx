@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import Modal from './Modal';
-import { authAPI } from '../service/api';
+import { authAPI, vehiclesAPI } from '../service/api';
 
 const UploadSection = styled.div`
   margin-bottom: 2rem;
@@ -393,12 +393,13 @@ const HelpText = styled.p`
   }
 `;
 
-const AddVehicleModal = ({ isOpen, onClose, onSave }) => {
+const AddVehicleModal = ({ isOpen, onClose, onSave, editingVehicle }) => {
   const [formData, setFormData] = useState({
     brandModel: '',
     year: '',
     licensePlate: '',
-    vin: '',
+    color: '',
+    fuelType: 'gasoline',
     vehicleType: '',
     primaryDriver: '',
     image: null,
@@ -416,18 +417,50 @@ const AddVehicleModal = ({ isOpen, onClose, onSave }) => {
 
       setLoadingDrivers(true);
       try {
-        const users = await authAPI.getUsers();
-        const driverUsers = users.filter(user => user.role === 'driver' && user.is_active);
-        setDrivers(driverUsers);
+        const response = await authAPI.getDrivers();
+        // Handle both array and paginated responses
+        const driverList = Array.isArray(response) ? response : (response.results || []);
+        setDrivers(driverList);
+        console.log('Fetched drivers:', driverList);
       } catch (error) {
         console.error('Error fetching drivers:', error);
+        setDrivers([]);
       } finally {
         setLoadingDrivers(false);
       }
     };
 
+    // Populate form if editing
+    if (editingVehicle && isOpen) {
+      setFormData({
+        brandModel: editingVehicle.make && editingVehicle.model ? `${editingVehicle.make} ${editingVehicle.model}` : '',
+        year: editingVehicle.year || '',
+        licensePlate: editingVehicle.license_plate || '',
+        color: editingVehicle.color || '',
+        fuelType: editingVehicle.fuel_type || 'petrol',
+        vehicleType: editingVehicle.vehicle_type || '',
+        primaryDriver: editingVehicle.assigned_driver || '',
+        image: null,
+        imagePreview: editingVehicle.image || null
+      });
+    } else if (!editingVehicle && isOpen) {
+      // Reset form if creating new vehicle
+      setFormData({
+        brandModel: '',
+        year: '',
+        licensePlate: '',
+        color: '',
+        fuelType: 'gasoline',
+        vehicleType: '',
+        primaryDriver: '',
+        image: null,
+        imagePreview: null
+      });
+      setErrors({});
+    }
+
     fetchDrivers();
-  }, [isOpen]);
+  }, [isOpen, editingVehicle]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -499,14 +532,12 @@ const AddVehicleModal = ({ isOpen, onClose, onSave }) => {
 
     if (!formData.licensePlate.trim()) {
       newErrors.licensePlate = 'License plate is required';
-    } else if (!/^[A-Z0-9-]{1,10}$/i.test(formData.licensePlate)) {
-      newErrors.licensePlate = 'Invalid license plate format';
-    }
-
-    if (!formData.vin.trim()) {
-      newErrors.vin = 'VIN number is required';
-    } else if (formData.vin.length !== 17) {
-      newErrors.vin = 'VIN must be exactly 17 characters';
+    } else if (formData.licensePlate.length < 3) {
+      newErrors.licensePlate = 'License plate must be at least 3 characters';
+    } else if (formData.licensePlate.length > 15) {
+      newErrors.licensePlate = 'License plate must not exceed 15 characters';
+    } else if (!/^[A-Z0-9\-\s]+$/i.test(formData.licensePlate)) {
+      newErrors.licensePlate = 'License plate can only contain letters, numbers, hyphens and spaces';
     }
 
     if (!formData.vehicleType) {
@@ -527,13 +558,44 @@ const AddVehicleModal = ({ isOpen, onClose, onSave }) => {
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      onSave(formData);
+      // Parse brandModel into make and model
+      const [make, ...modelParts] = formData.brandModel.trim().split(/\s+/);
+      const model = modelParts.join(' ') || formData.brandModel;
+
+      // Use FormData for file uploads
+      const submitData = new FormData();
+      submitData.append('make', make);
+      submitData.append('model', model);
+      submitData.append('year', parseInt(formData.year));
+      submitData.append('license_plate', formData.licensePlate.toUpperCase());
+      submitData.append('color', formData.color);
+      submitData.append('fuel_type', formData.fuelType);
+      submitData.append('vehicle_type', formData.vehicleType);
+      if (formData.primaryDriver) {
+        submitData.append('assigned_driver', formData.primaryDriver);
+      }
+      
+      // Only append image if it's a new file (File instance)
+      if (formData.image && formData.image instanceof File) {
+        submitData.append('image', formData.image);
+      }
+      // For editing, if no new image was selected, don't include image in the FormData
+      // This allows the backend to keep the existing image
+
+      // Pass the data to parent component (AdminDashboard) to handle API call
+      // This ensures the API call and data refresh are done before closing the modal
+      await onSave(submitData, editingVehicle);
+      
+      if (editingVehicle) {
+        alert('Vehicle updated successfully!');
+      } else {
+        alert('Vehicle added successfully!');
+      }
+      
       handleClose();
     } catch (error) {
       console.error('Error saving vehicle:', error);
-    } finally {
+      alert('Failed to save vehicle: ' + (error.message || 'Unknown error'));
       setIsSubmitting(false);
     }
   };
@@ -543,7 +605,8 @@ const AddVehicleModal = ({ isOpen, onClose, onSave }) => {
       brandModel: '',
       year: '',
       licensePlate: '',
-      vin: '',
+      color: '',
+      fuelType: 'gasoline',
       vehicleType: '',
       primaryDriver: '',
       image: null,
@@ -555,7 +618,7 @@ const AddVehicleModal = ({ isOpen, onClose, onSave }) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Add New Vehicle">
+    <Modal isOpen={isOpen} onClose={handleClose} title={editingVehicle ? "Edit Vehicle" : "Add New Vehicle"}>
       <UploadSection>
         <FileInput
           type="file"
@@ -617,20 +680,15 @@ const AddVehicleModal = ({ isOpen, onClose, onSave }) => {
 
           <FormField>
             <FieldLabel>Manufacturing Year</FieldLabel>
-            <SelectInput
+            <TextInput
+              type="number"
               name="year"
+              placeholder="e.g., 2024"
               value={formData.year}
               onChange={handleInputChange}
-            >
-              <option value="" disabled>Select manufacturing year</option>
-              <option value="2024">2024</option>
-              <option value="2023">2023</option>
-              <option value="2022">2022</option>
-              <option value="2021">2021</option>
-              <option value="2020">2020</option>
-              <option value="2019">2019</option>
-              <option value="2018">2018</option>
-            </SelectInput>
+              min="1900"
+              max={new Date().getFullYear()}
+            />
             <FieldHelp>The year the vehicle was manufactured</FieldHelp>
             {errors.year && <ErrorMessage>{errors.year}</ErrorMessage>}
           </FormField>
@@ -644,24 +702,38 @@ const AddVehicleModal = ({ isOpen, onClose, onSave }) => {
               value={formData.licensePlate}
               onChange={handleInputChange}
               style={{ textTransform: 'uppercase' }}
+              maxLength="15"
             />
-            <FieldHelp>Official license plate number (alphanumeric, max 10 chars)</FieldHelp>
+            <FieldHelp>Official license plate (3-15 chars: letters, numbers, hyphens, spaces)</FieldHelp>
             {errors.licensePlate && <ErrorMessage>{errors.licensePlate}</ErrorMessage>}
           </FormField>
 
           <FormField>
-            <FieldLabel>VIN Number</FieldLabel>
+            <FieldLabel>Color</FieldLabel>
             <TextInput
               type="text"
-              name="vin"
-              placeholder="1HGCM82633A123456"
-              value={formData.vin}
+              name="color"
+              placeholder="e.g., Black, White, Silver"
+              value={formData.color}
               onChange={handleInputChange}
-              style={{ textTransform: 'uppercase' }}
-              maxLength="17"
             />
-            <FieldHelp>17-character Vehicle Identification Number (found on dashboard)</FieldHelp>
-            {errors.vin && <ErrorMessage>{errors.vin}</ErrorMessage>}
+            <FieldHelp>Vehicle color</FieldHelp>
+            {errors.color && <ErrorMessage>{errors.color}</ErrorMessage>}
+          </FormField>
+
+          <FormField>
+            <FieldLabel>Fuel Type</FieldLabel>
+            <SelectInput
+              name="fuelType"
+              value={formData.fuelType}
+              onChange={handleInputChange}
+            >
+              <option value="petrol">Gasoil</option>
+              <option value="diesel">Diesel</option>
+              <option value="electric">Electric</option>
+              <option value="hybrid">Hybrid</option>
+            </SelectInput>
+            {errors.fuelType && <ErrorMessage>{errors.fuelType}</ErrorMessage>}
           </FormField>
 
           <FormField>

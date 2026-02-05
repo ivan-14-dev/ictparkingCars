@@ -82,21 +82,18 @@ class MaintenanceHistoryAdmin(admin.ModelAdmin):
 @admin.register(models.Accessory)
 class AccessoryAdmin(admin.ModelAdmin):
     """Admin for Accessory model"""
-    list_display = ('name', 'sku', 'category', 'price', 'stock_level', 'min_stock_level', 'is_active')
-    list_filter = ('category', 'is_active', 'supplier')
-    search_fields = ('name', 'sku', 'description')
+    list_display = ('name', 'price', 'stock_level', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'description')
     ordering = ('name',)
     readonly_fields = ('created_at', 'updated_at')
 
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'sku', 'category', 'description')
+            'fields': ('name', 'description')
         }),
         ('Pricing & Stock', {
-            'fields': ('price', 'stock_level', 'min_stock_level')
-        }),
-        ('Supplier & Location', {
-            'fields': ('supplier', 'location')
+            'fields': ('price', 'stock_level')
         }),
         ('Media & Status', {
             'fields': ('image', 'is_active')
@@ -178,7 +175,62 @@ class NotificationAdmin(admin.ModelAdmin):
     filter_horizontal = ('recipients',)
 
 
+@admin.register(models.Breakdown)
+class BreakdownAdmin(admin.ModelAdmin):
+    """Admin for Breakdown model"""
+    list_display = ('title', 'vehicle', 'mechanic', 'status', 'reported_at')
+    list_filter = ('status', 'reported_at', 'vehicle')
+    search_fields = ('title', 'description', 'vehicle__license_plate', 'mechanic__username')
+    ordering = ('-reported_at',)
+    readonly_fields = ('created_at', 'updated_at', 'reported_at')
+
+    fieldsets = (
+        ('Breakdown Details', {
+            'fields': ('vehicle', 'title', 'description')
+        }),
+        ('Reporting', {
+            'fields': ('mechanic', 'image')
+        }),
+        ('Status', {
+            'fields': ('status', 'resolved_at')
+        }),
+        ('Timestamps', {
+            'fields': ('reported_at', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(models.RepairRecord)
+class RepairRecordAdmin(admin.ModelAdmin):
+    """Admin for RepairRecord model"""
+    list_display = ('title', 'vehicle', 'mechanic', 'status', 'completed_at', 'reviewed_by')
+    list_filter = ('status', 'completed_at', 'vehicle', 'mechanic')
+    search_fields = ('title', 'description', 'vehicle__license_plate', 'mechanic__username')
+    ordering = ('-completed_at',)
+    readonly_fields = ('created_at', 'updated_at', 'completed_at', 'reviewed_at')
+    filter_horizontal = ('accessories_used',)
+
+    fieldsets = (
+        ('Repair Details', {
+            'fields': ('vehicle', 'title', 'description')
+        }),
+        ('Work Information', {
+            'fields': ('mechanic', 'work_images', 'accessories_used')
+        }),
+        ('Review Status', {
+            'fields': ('status', 'reviewed_by', 'reviewed_at')
+        }),
+        ('Timestamps', {
+            'fields': ('completed_at', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+
 # Configure admin site
 admin.site.site_header = 'ICT Fleet Management Administration'
 admin.site.site_title = 'ICT Fleet Admin'
 admin.site.index_title = 'Fleet Management Dashboard'
+

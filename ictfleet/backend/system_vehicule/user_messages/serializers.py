@@ -22,15 +22,13 @@ class MessageListSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Message
         fields = [
-            'id', 'sender_name', 'recipient_name', 'subject', 'is_read', 'created_at'
+            'id', 'sender_name', 'recipient_name', 'subject', 'body', 'is_read', 'created_at'
         ]
 
 
 class MessageCreateSerializer(serializers.ModelSerializer):
+    recipient = serializers.CharField(required=False)  # Allow string 'admin' or ID
+
     class Meta:
         model = models.Message
         fields = ['recipient', 'subject', 'body']
-
-    def create(self, validated_data):
-        validated_data['sender'] = self.context['request'].user
-        return super().create(validated_data)

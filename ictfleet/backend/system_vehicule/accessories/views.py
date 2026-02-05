@@ -17,8 +17,8 @@ class AccessoryViewSet(ModelViewSet):
     queryset = models.Accessory.objects.all()
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['category', 'is_active', 'supplier']
-    search_fields = ['name', 'sku', 'description']
+    filterset_fields = ['is_active']
+    search_fields = ['name', 'description']
     ordering_fields = ['name', 'price', 'stock_level', 'created_at']
     ordering = ['name']
 
@@ -41,6 +41,7 @@ class AccessoryViewSet(ModelViewSet):
     def update_stock(self, request, pk=None):
         """Update stock level for an accessory"""
         accessory = self.get_object()
+        
         serializer = serializers.StockUpdateSerializer(data=request.data)
 
         if serializer.is_valid():
@@ -66,8 +67,9 @@ class AccessoryViewSet(ModelViewSet):
 
     def _check_stock_alerts(self, accessory):
         """Check and create stock alerts if necessary"""
-        # Check if stock is low
-        if accessory.stock_level <= accessory.min_stock_level and accessory.is_active:
+        # Check if stock is low (below 5 units)
+        LOW_STOCK_THRESHOLD = 5
+        if accessory.stock_level <= LOW_STOCK_THRESHOLD and accessory.is_active:
             # Check if alert already exists and is unresolved
             existing_alert = models.StockAlert.objects.filter(
                 accessory=accessory,
@@ -76,16 +78,13 @@ class AccessoryViewSet(ModelViewSet):
 
             if not existing_alert:
                 alert_type = 'out_of_stock' if accessory.stock_level <= 0 else 'low_stock'
-                message = f"Stock level is {accessory.stock_level}, below minimum of {accessory.min_stock_level}"
+                message = f"Stock level is {accessory.stock_level} units"
 
                 models.StockAlert.objects.create(
                     accessory=accessory,
                     alert_type=alert_type,
                     message=message
                 )
-
-        # If stock is back to normal levels, we could auto-resolve alerts
-        # But for now, we'll leave them for manual resolution
 
 
 # Alternative class-based views
@@ -124,7 +123,8 @@ class AccessoryStockUpdateView(generics.UpdateAPIView):
             accessory.save()
 
             # Check for stock alerts
-            if accessory.stock_level <= accessory.min_stock_level and accessory.is_active:
+            LOW_STOCK_THRESHOLD = 5
+            if accessory.stock_level <= LOW_STOCK_THRESHOLD and accessory.is_active:
                 existing_alert = models.StockAlert.objects.filter(
                     accessory=accessory,
                     is_resolved=False
@@ -132,7 +132,7 @@ class AccessoryStockUpdateView(generics.UpdateAPIView):
 
                 if not existing_alert:
                     alert_type = 'out_of_stock' if accessory.stock_level <= 0 else 'low_stock'
-                    message = f"Stock level is {accessory.stock_level}, below minimum of {accessory.min_stock_level}"
+                    message = f"Stock level is {accessory.stock_level} units"
 
                     models.StockAlert.objects.create(
                         accessory=accessory,
@@ -148,38 +148,41 @@ class AccessoryStockUpdateView(generics.UpdateAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# Removed StockAlert views since the model was removed
+
+
 class StockAlertListView(generics.ListAPIView):
+    """List stock alerts (optionally filter unresolved)"""
+    queryset = models.StockAlert.objects.all().order_by('-created_at')
     serializer_class = serializers.StockAlertSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['alert_type', 'is_resolved', 'accessory']
-    search_fields = ['message', 'accessory__name', 'accessory__sku']
-    ordering_fields = ['created_at', 'alert_type']
-    ordering = ['-created_at']
 
     def get_queryset(self):
-        return models.StockAlert.objects.select_related('accessory', 'resolved_by')
+        qs = super().get_queryset()
+        # allow queryparam ?unresolved=true to filter unresolved alerts
+        unresolved = self.request.query_params.get('unresolved')
+        if unresolved and unresolved.lower() in ('1', 'true', 'yes'):
+            qs = qs.filter(is_resolved=False)
+        return qs
 
 
 class StockAlertResolveView(generics.UpdateAPIView):
+    """Resolve a stock alert by setting `is_resolved`, `resolved_by`, and `resolved_at`"""
     queryset = models.StockAlert.objects.all()
+    serializer_class = serializers.StockAlertSerializer
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, *args, **kwargs):
         alert = self.get_object()
-
         if alert.is_resolved:
-            return Response(
-                {'message': 'Alert is already resolved'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'detail': 'Alert already resolved.'}, status=status.HTTP_400_BAD_REQUEST)
 
         alert.is_resolved = True
-        alert.resolved_at = timezone.now()
         alert.resolved_by = request.user
+        alert.resolved_at = timezone.now()
         alert.save()
 
-        return Response({
-            'message': 'Stock alert resolved',
-            'alert': serializers.StockAlertSerializer(alert).data
-        })
+        return Response(serializers.StockAlertSerializer(alert).data)
+
+    def post(self, request, *args, **kwargs):
+        return self.patch(request, *args, **kwargs)

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authAPI } from '../service/api';
-import { isAdmin } from '../service/api';
+import { isAdmin, getCurrentUser } from '../service/api';
 
 const UserManagementPage = ({ onBack, showHeader = true }) => {
   const [users, setUsers] = useState([]);
@@ -9,6 +9,7 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -18,7 +19,6 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
     role: 'driver',
     department: '',
     phone_number: '',
-    employee_id: '',
     profile_picture: null
   });
 
@@ -46,28 +46,95 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    setCreating(true);
     try {
-      await authAPI.createUser(formData);
+      console.log('DEBUG: Attempting to create user. Current user:', getCurrentUser());
+      console.log('DEBUG: isAdmin():', isAdmin());
+      const userData = new FormData();
+
+      // Add all fields to FormData
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== null && formData[key] !== undefined) {
+          if (key === 'password' && formData[key] === '') return;
+          if (key === 'profile_picture' && formData[key] instanceof File) {
+            userData.append(key, formData[key]);
+          } else {
+            userData.append(key, formData[key]);
+          }
+        }
+      });
+
+      console.log('DEBUG: FormData fields being sent:');
+      for (let [key, value] of userData.entries()) {
+        console.log(`  ${key}: ${value}`);
+      }
+      
+      const response = await authAPI.createUser(userData);
+      console.log('DEBUG: User created successfully:', response);
       setShowCreateModal(false);
       resetForm();
       await fetchUsers();
+      setError(null); // Clear any previous errors
     } catch (error) {
       console.error('Error creating user:', error);
-      setError('Failed to create user');
+      console.log('DEBUG: Error status:', error.status);
+      console.log('DEBUG: Error data:', error.data);
+      console.log('DEBUG: Full error object:', JSON.stringify(error, null, 2));
+      // Show more specific error message
+      if (error.status === 403) {
+        setError('Access denied. You need administrator privileges to create users.');
+      } else if (error.status === 401) {
+        setError('Authentication failed. Please log in again.');
+      } else if (error.data && typeof error.data === 'object') {
+        // Show the actual backend error message
+        const errorMessage = Object.entries(error.data)
+          .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+          .join(' | ');
+        setError(errorMessage || 'Failed to create user');
+      } else if (error.data && error.data.detail) {
+        setError(error.data.detail);
+      } else if (error.data && error.data.message) {
+        setError(error.data.message);
+      } else {
+        setError(error.message || 'Failed to create user. Please check your input and try again.');
+      }
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     try {
-      await authAPI.updateUser(selectedUser.id, formData);
+      console.log('DEBUG: Updating user', selectedUser.id);
+      console.log('DEBUG: Form data:', formData);
+      const userData = new FormData();
+
+      // Add all fields to FormData
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== null && formData[key] !== undefined) {
+          if (key === 'password' && formData[key] === '') return;
+          userData.append(key, formData[key]);
+        }
+      });
+
+      console.log('DEBUG: FormData fields being sent:');
+      for (let [key, value] of userData.entries()) {
+        console.log(`  ${key}: ${value}`);
+      }
+
+      const response = await authAPI.updateUser(selectedUser.id, userData);
+      console.log('DEBUG: User updated successfully:', response);
       setShowEditModal(false);
       setSelectedUser(null);
       resetForm();
       await fetchUsers();
     } catch (error) {
       console.error('Error updating user:', error);
-      setError('Failed to update user');
+      console.log('DEBUG: Error status:', error.status);
+      console.log('DEBUG: Error data:', error.data);
+      console.log('DEBUG: Full error:', JSON.stringify(error, null, 2));
+      setError('Failed to update user. ' + (error.data ? JSON.stringify(error.data) : error.message));
     }
   };
 
@@ -76,10 +143,27 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
 
     try {
       await authAPI.deleteUser(userId);
+      // Refresh user list regardless of any errors
       await fetchUsers();
+      setError(null); // Clear any error messages on success
     } catch (error) {
       console.error('Error deleting user:', error);
-      setError('Failed to delete user');
+      console.log('DEBUG: Error status:', error.status);
+      console.log('DEBUG: Error data:', error.data);
+      
+      // Check if user was actually deleted despite the error
+      try {
+        await fetchUsers();
+        // If we can refresh the list, the delete likely succeeded
+        setError(null);
+      } catch (fetchErr) {
+        // If refresh also fails, show error
+        if (error.status === 401) {
+          setError('Authentication failed. Please log in again.');
+        } else {
+          setError('Failed to delete user');
+        }
+      }
     }
   };
 
@@ -94,7 +178,7 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
       role: user.role,
       department: user.department || '',
       phone_number: user.phone_number || '',
-      employee_id: user.employee_id || '',
+      is_active: user.is_active,
       profile_picture: null // Will be set if user uploads new photo
     });
     setShowEditModal(true);
@@ -110,7 +194,7 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
       role: 'driver',
       department: '',
       phone_number: '',
-      employee_id: '',
+      is_active: true,
       profile_picture: null
     });
   };
@@ -232,6 +316,9 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
                         <div className="text-xs text-slate-500 dark:text-slate-400">
                           {user.email}
                         </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          {user.phone_number || 'No phone'}
+                        </div>
                       </div>
                       <div className="mb-3">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(user.role)}`}>
@@ -277,8 +364,8 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
 
       {/* Create User Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-[#0d141b] dark:text-white mb-4">Create New User</h3>
 
             <form onSubmit={handleCreateUser} className="space-y-4">
@@ -337,19 +424,6 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Profile Picture
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setFormData({...formData, profile_picture: e.target.files[0]})}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90"
-                />
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Leave empty to keep current photo</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Password
                 </label>
                 <input
@@ -357,7 +431,6 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
-                  required
                 />
               </div>
 
@@ -402,29 +475,16 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone_number}
-                    onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Employee ID
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.employee_id}
-                    onChange={(e) => setFormData({...formData, employee_id: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone_number}
+                  onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
+                />
               </div>
 
               <div className="flex gap-3 mt-6">
@@ -452,11 +512,44 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
 
       {/* Edit User Modal */}
       {showEditModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-[#0d141b] dark:text-white mb-4">Edit User</h3>
 
             <form onSubmit={handleUpdateUser} className="space-y-4">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="h-20 w-20 rounded-full overflow-hidden bg-slate-100 border-2 border-slate-300">
+                  {formData.profile_picture ? (
+                    <img 
+                      src={URL.createObjectURL(formData.profile_picture)} 
+                      alt="Preview" 
+                      className="h-full w-full object-cover"
+                    />
+                  ) : selectedUser.profile_picture ? (
+                    <img 
+                      src={selectedUser.profile_picture} 
+                      alt={selectedUser.first_name} 
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-slate-400 text-2xl font-bold">
+                      {(selectedUser.first_name || selectedUser.username).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Profile Picture
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setFormData({...formData, profile_picture: e.target.files[0]})}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90"
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
@@ -526,28 +619,43 @@ const UserManagementPage = ({ onBack, showHeader = true }) => {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone_number}
+                  onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Phone Number
+                    New Password (optional)
                   </label>
                   <input
-                    type="tel"
-                    value={formData.phone_number}
-                    onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+                    type="password"
+                    value={formData.password || ''}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    placeholder="Leave blank to keep current"
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Employee ID
+                <div className="flex items-end pb-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_active !== false}
+                      onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+                      className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary"
+                    />
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Active
+                    </span>
                   </label>
-                  <input
-                    type="text"
-                    value={formData.employee_id}
-                    onChange={(e) => setFormData({...formData, employee_id: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
-                  />
                 </div>
               </div>
 

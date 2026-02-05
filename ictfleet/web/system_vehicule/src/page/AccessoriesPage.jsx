@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { accessoriesAPI } from '../service/api';
+import AddAccessoryModal from '../component/AddAccessoryModal';
 
 const AccessoriesPage = ({ onBack, showHeader = true }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -8,9 +9,14 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showStockModal, setShowStockModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedAccessory, setSelectedAccessory] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [stockChange, setStockChange] = useState(0);
   const [stockReason, setStockReason] = useState('');
+  const [isAddAccessoryModalOpen, setIsAddAccessoryModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', description: '', price: '' });
 
   useEffect(() => {
     fetchAccessoriesData();
@@ -44,43 +50,78 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
 
   const handleStockUpdate = async (accessoryId, change, reason) => {
     try {
-      await accessoriesAPI.updateStock(accessoryId, change, reason);
+      if (change === 0) {
+        alert('Please enter a stock change amount');
+        return;
+      }
+      const response = await accessoriesAPI.updateStock(accessoryId, change, reason);
+      console.log('Stock update response:', response);
       // Refresh data
       await fetchAccessoriesData();
       setShowStockModal(false);
       setSelectedAccessory(null);
       setStockChange(0);
       setStockReason('');
+      alert('Stock updated successfully');
     } catch (error) {
       console.error('Error updating stock:', error);
-      // TODO: Show error message
+      alert('Failed to update stock: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleEditAccessory = (accessory) => {
+    setSelectedAccessory(accessory);
+    setEditForm({
+      name: accessory.name,
+      description: accessory.description || '',
+      price: accessory.price
+    });
+    setIsEditMode(false);
+    setShowDetailsModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      if (!editForm.name || editForm.price === '') {
+        alert('Please fill in all required fields');
+        return;
+      }
+      await accessoriesAPI.updateAccessory(selectedAccessory.id, editForm);
+      // Refresh data
+      await fetchAccessoriesData();
+      setIsEditMode(false);
+      // Keep the modal open but show view mode
+      alert('Accessory updated successfully');
+    } catch (error) {
+      console.error('Error updating accessory:', error);
+      alert('Failed to update accessory: ' + (error.message || 'Unknown error'));
     }
   };
 
   const handleResolveAlert = async (alertId) => {
     try {
       await accessoriesAPI.resolveStockAlert(alertId);
-      // Refresh alerts
-      try {
-        const alerts = await accessoriesAPI.getStockAlerts();
-        setStockAlerts(alerts?.results || []);
-      } catch (alertsError) {
-        console.warn('Could not refresh stock alerts:', alertsError);
-        // Remove the resolved alert from local state
-        setStockAlerts(prev => prev.filter(alert => alert.id !== alertId));
-      }
+      // Refresh alerts - temporarily disabled due to endpoint issues
+      // try {
+      //   const alerts = await accessoriesAPI.getStockAlerts();
+      //   setStockAlerts(alerts?.results || alerts || []);
+      // } catch (alertsError) {
+      //   console.warn('Could not refresh stock alerts:', alertsError);
+      //   // Remove the resolved alert from local state
+      //   setStockAlerts(prev => prev.filter(alert => alert.id !== alertId));
+      // }
     } catch (error) {
       console.error('Error resolving alert:', error);
     }
   };
 
-  // Filter accessories by category
-  const filteredAccessories = selectedCategory === 'all'
-    ? accessories
-    : accessories.filter(accessory => accessory.category === selectedCategory);
+  const handleAccessoryAdded = () => {
+    fetchAccessoriesData();
+    setIsAddAccessoryModalOpen(false);
+  };
 
-  // Get unique categories
-  const categories = ['all', ...new Set(accessories.map(a => a.category))];
+  // Use all accessories (no filtering)
+  const filteredAccessories = accessories;
 
   // Get status for accessories based on stock levels
   const getAccessoryStatus = (accessory) => {
@@ -145,19 +186,28 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-base font-normal">Manage and monitor inventory levels for fleet components. Highlighting low-stock items for immediate restocking.</p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
-            <span className="material-symbols-outlined text-[18px]">inventory</span>
-            <span className="font-bold text-slate-900 dark:text-white">{accessories.length}</span> Total Parts
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <span className="material-symbols-outlined text-[18px]">inventory</span>
+              <span className="font-bold text-slate-900 dark:text-white">{accessories.length}</span> Total Parts
+            </div>
+            <button
+              onClick={() => setIsAddAccessoryModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 transition-all"
+            >
+              <span className="material-symbols-outlined">add</span>
+              Add Accessory
+            </button>
           </div>
         </div>
 
-        {/* Export Button */}
+        {/* Export Button
         <div className="flex justify-end mb-6">
           <button className="flex items-center gap-2 px-4 py-2 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 transition-all">
             <span className="material-symbols-outlined">download</span>
             Export CSV
           </button>
-        </div>
+        </div> */}
 
         {/* Stock Alerts */}
         {stockAlerts.length > 0 && (
@@ -168,12 +218,7 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
                 <div key={alert.id} className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
                   <div className="flex items-center gap-3">
                     <span className="material-symbols-outlined text-orange-600">warning</span>
-                    <div>
-                      <p className="font-semibold text-[#0d141b] dark:text-white">{alert.accessory_name}</p>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Current stock: {alert.current_stock} | Minimum required: {alert.min_stock_level}
-                      </p>
-                    </div>
+                    <div>\n                      <p className="font-semibold text-[#0d141b] dark:text-white">{alert.accessory_name}</p>\n                      <p className="text-sm text-slate-600 dark:text-slate-400">\n                        Current stock: {alert.current_stock} units\n                      </p>\n                    </div>
                   </div>
                   <button
                     onClick={() => handleResolveAlert(alert.id)}
@@ -187,61 +232,12 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
           </div>
         )}
 
-        {/* Category Filters */}
-        <div className="mb-6">
-          <div className="flex gap-2 flex-wrap mb-4">
-            {categories.map((category) => {
-              const getCategoryIcon = (cat) => {
-                switch (cat) {
-                  case 'All Categories': return 'inventory';
-                  case 'Tires': return 'tire_repair';
-                  case 'Batteries': return 'battery_full';
-                  case 'Fluids': return 'oil_barrel';
-                  case 'Brakes': return 'settings';
-                  case 'Lighting': return 'lightbulb';
-                  case 'Belts': return 'timeline';
-                  case 'Filters': return 'filter_alt';
-                  case 'Accessories': return 'build';
-                  default: return 'category';
-                }
-              };
-
-              return (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category === 'All Categories' ? 'all' : category.toLowerCase())}
-                  className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-4 text-sm font-semibold transition-all ${
-                    (selectedCategory === 'all' && category === 'All Categories') ||
-                    selectedCategory === category.toLowerCase()
-                      ? 'bg-primary text-white'
-                      : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-sm">{getCategoryIcon(category)}</span>
-                  {category}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex gap-2 justify-end">
-            <button className="flex h-9 items-center justify-center gap-x-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
-              <span className="material-symbols-outlined text-[20px]">filter_list</span>
-              <span className="text-sm font-medium">Filters</span>
-            </button>
-            <button className="flex h-9 items-center justify-center gap-x-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
-              <span className="material-symbols-outlined text-[20px]">sort</span>
-              <span className="text-sm font-medium">Sort</span>
-            </button>
-          </div>
-        </div>
-
         {/* Accessories Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredAccessories.map((item) => {
             const status = getAccessoryStatus(item);
             return (
-              <div key={item.id} className="group bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden">
+              <div key={item.id} className="group bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer" onClick={() => { setSelectedAccessory(item); setShowDetailsModal(true); }}>
                 {status === 'low' && (
                   <div className="bg-orange-500 text-white text-xs font-bold px-3 py-1 flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm">warning</span>
@@ -258,24 +254,8 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
                 )}
 
                 <div className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex items-center justify-center w-6 h-6 bg-primary/10 rounded">
-                      <span className="material-symbols-outlined text-xs text-primary">
-                        {item.category === 'Tires' ? 'tire_repair' :
-                         item.category === 'Batteries' ? 'battery_full' :
-                         item.category === 'Fluids' ? 'oil_barrel' :
-                         item.category === 'Brakes' ? 'settings' :
-                         item.category === 'Lighting' ? 'lightbulb' :
-                         item.category === 'Belts' ? 'timeline' :
-                         item.category === 'Filters' ? 'filter_alt' :
-                         'build'}
-                      </span>
-                    </div>
-                    <p className="text-xs font-bold text-primary">{item.category.toUpperCase()}</p>
-                  </div>
-                  <h4 className="font-bold text-[#0d141b] dark:text-white mb-2 text-sm leading-tight">{item.name}</h4>
+                  <h4 className="font-bold text-[#0d141b] dark:text-white mb-3 text-sm leading-tight">{item.name}</h4>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-[#4c739a]">SKU: {item.sku}</span>
                     <span className={`text-xs font-bold px-2 py-0.5 rounded ${getStatusColor(status)}`}>
                       {getStatusText(status)}
                     </span>
@@ -292,56 +272,20 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
                       <span className="material-symbols-outlined text-xs text-slate-500">attach_money</span>
                       <div>
                         <p className="text-xs text-slate-500">Price</p>
-                        <p className="text-sm font-bold text-[#0d141b] dark:text-white">${parseFloat(item.price).toFixed(2)}</p>
+                        <p className="text-sm font-bold text-[#0d141b] dark:text-white">{parseFloat(item.price).toFixed(2)} FCFA</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="px-4 pb-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => setSelectedAccessory(item)}
-                      className="flex items-center justify-center gap-2 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">edit</span>
-                      Edit
-                    </button>
-                    {status === 'low' ? (
-                      <button
-                        onClick={() => {
-                          setSelectedAccessory(item);
-                          setShowStockModal(true);
-                        }}
-                        className="flex items-center justify-center gap-2 h-9 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
-                        Restock
-                      </button>
-                    ) : status === 'out-of-stock' ? (
-                      <button
-                        onClick={() => {
-                          setSelectedAccessory(item);
-                          setShowStockModal(true);
-                        }}
-                        className="flex items-center justify-center gap-2 h-9 rounded-lg bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">local_shipping</span>
-                        Order
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setSelectedAccessory(item);
-                          setShowStockModal(true);
-                        }}
-                        className="flex items-center justify-center gap-2 h-9 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">add</span>
-                        Add
-                      </button>
-                    )}
-                  </div>
+                  <button
+                    onClick={() => handleEditAccessory(item)}
+                    className="w-full flex items-center justify-center gap-2 h-10 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">visibility</span>
+                    View Details
+                  </button>
                 </div>
               </div>
             );
@@ -368,7 +312,7 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
 
         {/* Stock Update Modal */}
         {showStockModal && selectedAccessory && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
             <div className="bg-white dark:bg-slate-900 rounded-xl p-6 w-full max-w-md mx-4">
               <h3 className="text-lg font-bold text-[#0d141b] dark:text-white mb-4">
                 Update Stock: {selectedAccessory.name}
@@ -428,6 +372,265 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
             </div>
           </div>
         )}
+
+        {/* Edit Accessory Modal */}
+        {showEditModal && selectedAccessory && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-slate-900 rounded-xl p-6 w-full max-w-md mx-4">
+              <h3 className="text-lg font-bold text-[#0d141b] dark:text-white mb-4">
+                Edit Accessory: {selectedAccessory.name}
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
+                    rows="3"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Price
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.price}
+                    onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Accessory Details Modal */}
+        {showDetailsModal && selectedAccessory && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              {/* Header with image */}
+              <div className="relative">
+                <img
+                  src={selectedAccessory.image || '/placeholder-image.jpg'}
+                  alt={selectedAccessory.name}
+                  className="w-full h-64 object-cover"
+                />
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="absolute top-4 right-4 bg-white dark:bg-slate-900 rounded-full p-2 shadow-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              {/* Details */}
+              <div className="p-6 space-y-6">
+                {isEditMode ? (
+                  <>
+                    <h2 className="text-2xl font-bold text-[#0d141b] dark:text-white mb-4">
+                      Edit Accessory
+                    </h2>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                          Name
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                          Description
+                        </label>
+                        <textarea
+                          value={editForm.description}
+                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
+                          rows="3"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                          Price
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editForm.price}
+                          onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Edit Mode Buttons */}
+                    <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                      <button
+                        onClick={() => setIsEditMode(false)}
+                        className="flex-1 flex items-center justify-center gap-2 h-10 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">cancel</span>
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveEdit}
+                        className="flex-1 flex items-center justify-center gap-2 h-10 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">check</span>
+                        Update
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <h2 className="text-2xl font-bold text-[#0d141b] dark:text-white mb-2">
+                        {selectedAccessory.name}
+                      </h2>
+                      <span className={`text-xs font-bold px-3 py-1 rounded inline-block ${getStatusColor(getAccessoryStatus(selectedAccessory))}`}>
+                        {getStatusText(getAccessoryStatus(selectedAccessory))}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Description</h3>
+                      <p className="text-slate-600 dark:text-slate-400 min-h-[2rem]">
+                        {selectedAccessory.description || 'No description provided'}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="border-l-4 border-blue-500 pl-4">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Stock Level</p>
+                        <p className="text-2xl font-bold text-[#0d141b] dark:text-white">
+                          {selectedAccessory.stock_level}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Units</p>
+                      </div>
+
+                      <div className="border-l-4 border-green-500 pl-4">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Price</p>
+                        <p className="text-2xl font-bold text-[#0d141b] dark:text-white">
+                          {parseFloat(selectedAccessory.price).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">FCFA</p>
+                      </div>
+                    </div>
+
+                    {selectedAccessory.created_at && (
+                      <div className="text-xs text-slate-500 dark:text-slate-400 pt-4 border-t border-slate-200 dark:border-slate-700">
+                        <p>Added on: {new Date(selectedAccessory.created_at).toLocaleDateString()}</p>
+                        {selectedAccessory.updated_at && (
+                          <p>Last updated: {new Date(selectedAccessory.updated_at).toLocaleDateString()}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* View Mode Buttons */}
+                    <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                      <button
+                        onClick={() => setIsEditMode(true)}
+                        className="flex-1 flex items-center justify-center gap-2 h-10 rounded-lg bg-blue-500 text-white font-semibold hover:bg-blue-600 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                        Edit
+                      </button>
+                      {getAccessoryStatus(selectedAccessory) === 'low' ? (
+                        <button
+                          onClick={() => {
+                            setShowDetailsModal(false);
+                            setShowStockModal(true);
+                          }}
+                          className="flex-1 flex items-center justify-center gap-2 h-10 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
+                          Restock
+                        </button>
+                      ) : getAccessoryStatus(selectedAccessory) === 'out-of-stock' ? (
+                        <button
+                          onClick={() => {
+                            setShowDetailsModal(false);
+                            setShowStockModal(true);
+                          }}
+                          className="flex-1 flex items-center justify-center gap-2 h-10 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                          Add Stock
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setShowDetailsModal(false);
+                            setShowStockModal(true);
+                          }}
+                          className="flex-1 flex items-center justify-center gap-2 h-10 rounded-lg bg-slate-500 text-white font-semibold hover:bg-slate-600 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                          Update Stock
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setShowDetailsModal(false)}
+                        className="flex-1 flex items-center justify-center gap-2 h-10 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">close</span>
+                        Close
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Accessory Modal */}
+        <AddAccessoryModal
+          isOpen={isAddAccessoryModalOpen}
+          onClose={() => setIsAddAccessoryModalOpen(false)}
+          onAccessoryAdded={handleAccessoryAdded}
+        />
       </main>
     </div>
   );

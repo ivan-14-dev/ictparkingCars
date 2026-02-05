@@ -1,9 +1,9 @@
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import SimpleRouter
 from . import views
 
 # Create a router for ViewSets
-router = DefaultRouter()
+router = SimpleRouter()
 router.register(r'', views.MessageViewSet, basename='message')
 
 urlpatterns = [

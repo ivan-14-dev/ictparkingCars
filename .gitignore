@@ -28,3 +28,9 @@ dist-ssr
 env
 .env
 *.png
+*.pyc
+__pycache__/
+db.sqlite3
+media/
+node_modules/
+

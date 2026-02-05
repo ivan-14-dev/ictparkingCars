@@ -1,244 +1,346 @@
 import React from 'react';
+import styled from 'styled-components';
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.5);
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 0.75rem;
+  max-width: 700px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+
+  @media (max-width: 768px) {
+    margin: 1rem;
+  }
+`;
+
+const CloseButtonContainer = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+`;
+
+const CloseButton = styled.button`
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f1f5f9;
+  }
+
+  span {
+    font-size: 1.5rem;
+  }
+`;
+
+const Content = styled.div`
+  padding: 2rem;
+`;
+
+const VehicleImage = styled.div`
+  width: 100%;
+  height: 300px;
+  border-radius: 0.75rem;
+  background-size: cover;
+  background-position: center;
+  background-color: #f1f5f9;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+`;
+
+const VehicleTitle = styled.h1`
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #0d141b;
+  margin: 0 0 0.5rem 0;
+`;
+
+const VehicleLicensePlate = styled.p`
+  font-size: 1rem;
+  color: #64748b;
+  margin: 0 0 2rem 0;
+  font-weight: 500;
+`;
+
+const DetailsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+`;
+
+const DetailCard = styled.div`
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+`;
+
+const DetailLabel = styled.label`
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+  display: block;
+`;
+
+const DetailValue = styled.p`
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #0d141b;
+  margin: 0;
+  word-break: break-word;
+`;
+
+const SectionTitle = styled.h2`
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0d141b;
+  margin: 2rem 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  span {
+    font-size: 1.5rem;
+    color: #137fec;
+  }
+`;
+
+const DriverCard = styled.div`
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+
+  &.assigned {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    text-align: left;
+  }
+`;
+
+const DriverAvatar = styled.div`
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(19, 127, 236, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #137fec;
+  font-size: 1.75rem;
+  flex-shrink: 0;
+`;
+
+const DriverInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`;
+
+const DriverName = styled.p`
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0d141b;
+  margin: 0;
+`;
+
+const DriverRole = styled.p`
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+`;
+
+const EmptyMessage = styled.p`
+  font-size: 1rem;
+  color: #64748b;
+  margin: 0;
+`;
 
 const VehicleDetailsModal = ({ isOpen, onClose, vehicle }) => {
   if (!isOpen || !vehicle) return null;
 
+  // Build image URL - check different possible ports
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    // Try common Django ports
+    return `http://127.0.0.1:8000${imagePath}`;
+  };
+
+  const vehicleImageUrl = getImageUrl(vehicle.image);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-background-light dark:bg-background-dark text-[#0d141b] dark:text-slate-50 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl">
-        {/* Close Button */}
-        <div className="sticky top-0 z-10 flex justify-end p-4 bg-background-light dark:bg-background-dark border-b border-[#e7edf3] dark:border-slate-800">
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
+    <ModalOverlay>
+      <ModalContent>
+        <CloseButtonContainer>
+          <CloseButton onClick={onClose}>
             <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
+          </CloseButton>
+        </CloseButtonContainer>
 
-        <div className="p-6">
-          {/* Hero Header Image & Status */}
-          <div className="relative w-full rounded-xl overflow-hidden shadow-lg mb-8 h-[350px]">
-            <div className="absolute inset-0 bg-cover bg-center" style={{backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.7) 100%), url('${vehicle.image || 'https://lh3.googleusercontent.com/aida-public/AB6AXuAWf3xu-mvoZJ1YSRq5L_Q8lJY8aFRBEDDpHih9y_TMmPDLUpf0nFGqBiS1l6Ne4Wgd87kEy9UdkYNY5fV8odWFYtJYuYKfJBSl1vm3w6pr_Om6VR6qMO_bk_uqx1HhY7bNAoXBAA6WCzJeCdpQU38UuMu33qMh_K8Alm-j9MDfYt23zb0a3LNLLrUh12P3o8ceSBPe2lWGC8LPK7MXsyNcagMlm-Zm8twNsStNgD9yfCG4RMhA7yz2-ZHrU4p5UTp9NUxOIQrhLH8'}')`}}></div>
-            <div className="absolute top-6 left-6">
-              <span className="px-4 py-1.5 bg-green-500 text-white text-sm font-bold rounded-full flex items-center gap-2 shadow-lg">
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-                {vehicle.status || 'In Service'}
+        <Content>
+          {/* Vehicle Image */}
+          <VehicleImage style={{
+            backgroundImage: vehicleImageUrl ? undefined : 'none',
+            backgroundColor: '#f1f5f9',
+            backgroundImage: vehicleImageUrl ? `url('${vehicleImageUrl}')` : undefined,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {!vehicleImageUrl && (
+              <span className="material-symbols-outlined" style={{ fontSize: '4rem', color: '#cbd5e1' }}>
+                directions_car
               </span>
-            </div>
-            <div className="absolute bottom-6 left-8 text-white">
-              <h1 className="text-4xl font-extrabold tracking-tight mb-1">{vehicle.year} {vehicle.brandModel}</h1>
-              <p className="text-lg text-slate-200 font-medium">{vehicle.licensePlate} • VIN: {vehicle.vin}</p>
-            </div>
-          </div>
+            )}
+            {vehicleImageUrl && (
+              <img 
+                src={vehicleImageUrl}
+                alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                  borderRadius: '0.75rem'
+                }}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.parentElement.innerHTML = '<span class="material-symbols-outlined" style="font-size: 4rem; color: #cbd5e1;">directions_car</span>';
+                }}
+              />
+            )}
+          </VehicleImage>
 
-          {/* Secondary Profile Header with Actions */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8 bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-[#e7edf3] dark:border-slate-800">
-            <div className="flex gap-5 items-center">
-              <div className="h-16 w-16 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-4xl">license</span>
-              </div>
-              <div>
-                <p className="text-[#4c739a] dark:text-slate-400 text-sm font-semibold uppercase tracking-wider">License Plate</p>
-                <p className="text-2xl font-bold text-[#0d141b] dark:text-white">{vehicle.licensePlate}</p>
-              </div>
-            </div>
-            <div className="flex gap-3 w-full md:w-auto">
-              <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg border-2 border-[#e7edf3] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
-                <span className="material-symbols-outlined text-xl">edit</span>
-                Edit Vehicle
-              </button>
-              <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-white font-bold hover:opacity-90 shadow-md transition-all">
-                <span className="material-symbols-outlined text-xl">ios_share</span>
-                Export History
-              </button>
-            </div>
-          </div>
+          {/* Vehicle Title */}
+          <VehicleTitle>
+            {vehicle.year} {vehicle.make} {vehicle.model}
+          </VehicleTitle>
+          <VehicleLicensePlate>License Plate: {vehicle.license_plate}</VehicleLicensePlate>
 
-          {/* Tabs Navigation */}
-          <div className="mb-6 border-b border-[#cfdbe7] dark:border-slate-800">
-            <div className="flex gap-8 overflow-x-auto">
-              <a className="flex items-center gap-2 border-b-4 border-primary text-primary pb-4 font-bold whitespace-nowrap" href="#">
-                <span className="material-symbols-outlined text-xl">settings_input_component</span>
-                Technical Specs
-              </a>
-              <a className="flex items-center gap-2 border-b-4 border-transparent text-[#4c739a] hover:text-primary pb-4 font-bold whitespace-nowrap transition-all" href="#">
-                <span className="material-symbols-outlined text-xl">person</span>
-                Assigned Driver
-              </a>
-              <a className="flex items-center gap-2 border-b-4 border-transparent text-[#4c739a] hover:text-primary pb-4 font-bold whitespace-nowrap transition-all" href="#">
-                <span className="material-symbols-outlined text-xl">build</span>
-                Maintenance
-              </a>
-              <a className="flex items-center gap-2 border-b-4 border-transparent text-[#4c739a] hover:text-primary pb-4 font-bold whitespace-nowrap transition-all" href="#">
-                <span className="material-symbols-outlined text-xl">extension</span>
-                Accessories
-              </a>
-            </div>
-          </div>
+          {/* Vehicle Details Grid */}
+          <DetailsGrid>
+            <DetailCard>
+              <DetailLabel>Manufacturing Year</DetailLabel>
+              <DetailValue>{vehicle.year}</DetailValue>
+            </DetailCard>
 
-          {/* Tab Content: Technical Specs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-[#e7edf3] dark:border-slate-800 shadow-sm">
-              <div className="flex items-center gap-3 mb-4 text-primary">
-                <span className="material-symbols-outlined">engineering</span>
-                <h3 className="font-bold text-lg">Powertrain</h3>
-              </div>
-              <div className="space-y-4">
-                <div className="flex flex-col gap-1 border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <p className="text-[#4c739a] text-xs font-bold uppercase tracking-widest">Engine</p>
-                  <p className="text-[#0d141b] dark:text-slate-200 font-medium">{vehicle.fuelType || 'Gasoline'}</p>
-                </div>
-                <div className="flex flex-col gap-1 border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <p className="text-[#4c739a] text-xs font-bold uppercase tracking-widest">Transmission</p>
-                  <p className="text-[#0d141b] dark:text-slate-200 font-medium">Automatic</p>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <p className="text-[#4c739a] text-xs font-bold uppercase tracking-widest">Fuel Type</p>
-                  <p className="text-[#0d141b] dark:text-slate-200 font-medium">{vehicle.fuelType || 'Gasoline'}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-[#e7edf3] dark:border-slate-800 shadow-sm">
-              <div className="flex items-center gap-3 mb-4 text-primary">
-                <span className="material-symbols-outlined">speed</span>
-                <h3 className="font-bold text-lg">Usage Stats</h3>
-              </div>
-              <div className="space-y-4">
-                <div className="flex flex-col gap-1 border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <p className="text-[#4c739a] text-xs font-bold uppercase tracking-widest">Current Odometer</p>
-                  <p className="text-[#0d141b] dark:text-slate-200 font-medium text-xl">{vehicle.odometer || 'N/A'} miles</p>
-                </div>
-                <div className="flex flex-col gap-1 border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <p className="text-[#4c739a] text-xs font-bold uppercase tracking-widest">Avg MPG</p>
-                  <p className="text-[#0d141b] dark:text-slate-200 font-medium">{vehicle.fuelEfficiency || 'N/A'}</p>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <p className="text-[#4c739a] text-xs font-bold uppercase tracking-widest">Last Movement</p>
-                  <p className="text-[#0d141b] dark:text-slate-200 font-medium">Today, 09:14 AM</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-[#e7edf3] dark:border-slate-800 shadow-sm">
-              <div className="flex items-center gap-3 mb-4 text-primary">
-                <span className="material-symbols-outlined">verified</span>
-                <h3 className="font-bold text-lg">Compliance</h3>
-              </div>
-              <div className="space-y-4">
-                <div className="flex flex-col gap-1 border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <p className="text-[#4c739a] text-xs font-bold uppercase tracking-widest">Next Inspection</p>
-                  <p className="text-orange-600 font-bold">Jan 12, 2024 (Due in 32 days)</p>
-                </div>
-                <div className="flex flex-col gap-1 border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <p className="text-[#4c739a] text-xs font-bold uppercase tracking-widest">Registration Expiry</p>
-                  <p className="text-[#0d141b] dark:text-slate-200 font-medium">May 30, 2024</p>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <p className="text-[#4c739a] text-xs font-bold uppercase tracking-widest">Insurance Policy</p>
-                  <p className="text-[#0d141b] dark:text-slate-200 font-medium">StateFarm-FLT-99812</p>
-                </div>
-              </div>
-            </div>
-          </div>
+            <DetailCard>
+              <DetailLabel>Color</DetailLabel>
+              <DetailValue>{vehicle.color || 'Not specified'}</DetailValue>
+            </DetailCard>
 
-          {/* Section Header */}
-          <div className="flex items-center justify-between mt-12 mb-6">
-            <h2 className="text-2xl font-bold text-[#0d141b] dark:text-white">Recent Maintenance</h2>
-            <button className="text-primary text-sm font-bold flex items-center gap-1 hover:underline">
-              View Full Log
-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
-          </div>
+            <DetailCard>
+              <DetailLabel>Fuel Type</DetailLabel>
+              <DetailValue>
+                {vehicle.fuel_type ? vehicle.fuel_type.charAt(0).toUpperCase() + vehicle.fuel_type.slice(1) : 'Not specified'}
+              </DetailValue>
+            </DetailCard>
 
-          {/* Maintenance List */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-[#e7edf3] dark:border-slate-800 shadow-sm overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-[#f8f9fb] dark:bg-slate-800 text-[#4c739a] text-xs font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="px-6 py-4">Service Date</th>
-                  <th className="px-6 py-4">Maintenance Type</th>
-                  <th className="px-6 py-4">Parts Used</th>
-                  <th className="px-6 py-4 text-right">Cost</th>
-                  <th className="px-6 py-4 text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#e7edf3] dark:divide-slate-800 text-sm">
-                {vehicle.repairHistory && vehicle.repairHistory.length > 0 ? vehicle.repairHistory.map((repair, index) => (
-                  <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="px-6 py-4 font-medium">{repair.date}</td>
-                    <td className="px-6 py-4">{repair.description}</td>
-                    <td className="px-6 py-4 text-[#4c739a]">{repair.parts || 'None'}</td>
-                    <td className="px-6 py-4 text-right">${repair.cost}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-bold">Completed</span>
-                    </td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-4 text-center text-[#4c739a]">No maintenance history available</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+            <DetailCard>
+              <DetailLabel>Vehicle Type</DetailLabel>
+              <DetailValue>{vehicle.vehicle_type || 'Not specified'}</DetailValue>
+            </DetailCard>
 
-          {/* Linked Accessories Grid */}
-          <div className="mt-12 mb-6">
-            <h2 className="text-2xl font-bold text-[#0d141b] dark:text-white">Compatible Stock Parts</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-12">
-            {/* Accessory Card 1 */}
-            <div className="group bg-white dark:bg-slate-900 rounded-xl border border-[#e7edf3] dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md transition-all">
-              <div className="h-40 bg-cover bg-center bg-[#f0f4f8]" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAmAq0er0PWDSVyJS_oMq1NuQkfZYR1B2WKW1fV-C0uXbTl6X0S5gh1qXhRco6eaXgG67TCWNklpwU40gYJ1AVNFGz5Iej8Vi3DnaYc51txzdzsPJURj3rXX80KiT5em1u3rLnMTzw_G2SQnDbvJOdc2apfgGuFmLSMkNswNRf8YAynetj14cHMKE3kI2B4b3ukNJ5NOsm0c0kD0WWjqWsV-MZq5jtoNPHj3lezpV5mG_CLRFB-E1fX7ThE_RXXnGAMIMKM1hIViRo")'}}></div>
-              <div className="p-4">
-                <p className="text-xs font-bold text-primary mb-1">ACCESSORY</p>
-                <h4 className="font-bold text-[#0d141b] dark:text-white mb-2">All-Weather Floor Mats</h4>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-[#4c739a]">SKU: FLM-4421</span>
-                  <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">8 in Stock</span>
-                </div>
-              </div>
-            </div>
-            {/* Accessory Card 2 */}
-            <div className="group bg-white dark:bg-slate-900 rounded-xl border border-[#e7edf3] dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md transition-all">
-              <div className="h-40 bg-cover bg-center bg-[#f0f4f8]" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBZzvBPNspvqMrK929gTgd0tIF2KNx3qsrHJjDDrss3SFACeJF74lq2hWuz3nuxzrdVbSe0iExPsOXvY93u2f3qLDkKb2uw35N2ksU4FOZJuh15bn6-Q0qU6NmvUOKnZIP0xanXNVRh0ArQ76MVM947V1PbQxkwG2Jv5sKanG56u4rLtRBF5fTRHFYh0qINJuJ4CLcranhlKGPf-F6Um-TEU0wUlqC9eBCDxHqiXrXZLgFs9CZTdGJskTkry2xGmsx91LMs_lIcFHk")'}}></div>
-              <div className="p-4">
-                <p className="text-xs font-bold text-primary mb-1">CARGO</p>
-                <h4 className="font-bold text-[#0d141b] dark:text-white mb-2">Truck Bed Tool Box</h4>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-[#4c739a]">SKU: TBT-0091</span>
-                  <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">2 in Stock</span>
-                </div>
-              </div>
-            </div>
-            {/* Accessory Card 3 */}
-            <div className="group bg-white dark:bg-slate-900 rounded-xl border border-[#e7edf3] dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md transition-all">
-              <div className="h-40 bg-cover bg-center bg-[#f0f4f8]" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCD3WIRiN8hHEpVEf5xIDfWe88NadgeIeNtnr2XIQtDU8bKSVvSLeMayflPZwlgcmg0TWTUHhHRAZ06q3RpVtNXwD3lGWFPFmCd3JC8QO7fXhbSS2W4hej8lVDrkdu5Bx3PtOST0uE7bqV-hot5dwwKtxCnAGCQNIcL0tl9LiwEb_6Dc0PYC-aEjTmi3f1JtE2neJoevaXfEkTcWUy2Kr1OnWcazL2R9DvmZ6k2d99uCgHVU7OjN0p7BCOthV6Bwsxn8u8hx-MIG6Y")'}}></div>
-              <div className="p-4">
-                <p className="text-xs font-bold text-primary mb-1">LIGHTING</p>
-                <h4 className="font-bold text-[#0d141b] dark:text-white mb-2">LED Fog Light Kit</h4>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-[#4c739a]">SKU: LED-FOG-F1</span>
-                  <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">Low Stock</span>
-                </div>
-              </div>
-            </div>
-            {/* Accessory Card 4 */}
-            <div className="group bg-white dark:bg-slate-900 rounded-xl border border-[#e7edf3] dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md transition-all">
-              <div className="h-40 bg-cover bg-center bg-[#f0f4f8]" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDcGSG75AB8vfcttW7mYl3hTiuapMBqWyxVLVHE8VxmwjbljmdFdCJ4zjd2l73c1ID5abLo5fWN-yn4oNJYvu19w-QEmFXYLHlF2E6TCedylv7wdstPV1V09NZirKgdbTFC3fAK29eGMVKsTnrL69G3GXo9eM2z457eOIST2jOhUpSxkPOe5q3XpoRMKtgP5hgGhGP9owaxA214kgHfVmPoRKszMArMqL7eaAaoda0rbv9i52FSvJca9kn1uvbiERQOIYiHfYzA4ME")'}}></div>
-              <div className="p-4">
-                <p className="text-xs font-bold text-primary mb-1">CARGO</p>
-                <h4 className="font-bold text-[#0d141b] dark:text-white mb-2">Tri-Fold Bed Cover</h4>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-[#4c739a]">SKU: TFC-9922</span>
-                  <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">5 in Stock</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            <DetailCard>
+              <DetailLabel>License Plate</DetailLabel>
+              <DetailValue>{vehicle.license_plate}</DetailValue>
+            </DetailCard>
+
+            <DetailCard>
+              <DetailLabel>Current Mileage</DetailLabel>
+              <DetailValue>{vehicle.mileage ? vehicle.mileage.toLocaleString() : 'N/A'} miles</DetailValue>
+            </DetailCard>
+
+            <DetailCard>
+              <DetailLabel>Status</DetailLabel>
+              <DetailValue>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    textTransform: 'capitalize',
+                    backgroundColor:
+                      vehicle.status === 'active'
+                        ? 'rgba(34, 197, 94, 0.1)'
+                        : vehicle.status === 'maintenance'
+                        ? 'rgba(245, 158, 11, 0.1)'
+                        : 'rgba(239, 68, 68, 0.1)',
+                    color:
+                      vehicle.status === 'active'
+                        ? '#16a34a'
+                        : vehicle.status === 'maintenance'
+                        ? '#d97706'
+                        : '#dc2626',
+                  }}
+                >
+                  {vehicle.status ? vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1) : 'Unknown'}
+                </span>
+              </DetailValue>
+            </DetailCard>
+          </DetailsGrid>
+
+          {/* Assigned Driver Section */}
+          <SectionTitle>
+            <span className="material-symbols-outlined">person</span>
+            Assigned Driver
+          </SectionTitle>
+
+          {vehicle.assigned_driver_name ? (
+            <DriverCard className="assigned">
+              <DriverAvatar>
+                <span className="material-symbols-outlined">person</span>
+              </DriverAvatar>
+              <DriverInfo>
+                <DriverName>{vehicle.assigned_driver_name}</DriverName>
+                <DriverRole>Primary Driver</DriverRole>
+              </DriverInfo>
+            </DriverCard>
+          ) : (
+            <DriverCard>
+              <span className="material-symbols-outlined" style={{ fontSize: '3rem', color: '#cbd5e1', marginBottom: '0.5rem' }}>
+                person_outline
+              </span>
+              <EmptyMessage>No driver assigned</EmptyMessage>
+              <EmptyMessage style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                This vehicle is available for any qualified driver
+              </EmptyMessage>
+            </DriverCard>
+          )}
+        </Content>
+      </ModalContent>
+    </ModalOverlay>
   );
 };
 

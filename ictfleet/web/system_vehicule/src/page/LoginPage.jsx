@@ -223,8 +223,8 @@ const GlobalStyles = createGlobalStyle`
 
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    background: #0f172a;
-    color: #f8fafc;
+    background: linear-gradient(135deg, #f8fafc 0%, #eef2f5 100%);
+    color: #0d141b;
     overflow-x: hidden;
   }
 
@@ -244,6 +244,7 @@ const Container = styled.div`
   padding: 2rem;
   position: relative;
   overflow: hidden;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef2f5 100%);
 
   @media (max-width: 1024px) {
     padding: 1rem;
@@ -256,9 +257,7 @@ const BackgroundGradient = styled.div`
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(-45deg, #0f172a, #1e293b, #1e40af, #0f766e);
-  background-size: 400% 400%;
-  animation: ${gradientShift} 15s ease infinite;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef2f5 50%, #e8f0f7 100%);
   z-index: -2;
 `;
 
@@ -269,7 +268,7 @@ const AnimatedBackground = styled.div`
   width: 100%;
   height: 100%;
   z-index: -1;
-  opacity: 0.1;
+  opacity: 0.05;
 
   &::before {
     content: '';
@@ -277,7 +276,7 @@ const AnimatedBackground = styled.div`
     width: 400px;
     height: 400px;
     border-radius: 50%;
-    background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+    background: linear-gradient(45deg, #3b82f6, #1d4ed8);
     top: 20%;
     left: 10%;
     animation: ${float} 20s ease-in-out infinite;
@@ -297,18 +296,14 @@ const AnimatedBackground = styled.div`
 `;
 
 const LoginContainer = styled(motion.div)`
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
-  padding: 3rem;
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
   width: 100%;
-  max-width: 480px;
-  box-shadow:
-    0 20px 40px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  max-width: 420px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 10px 20px rgba(0, 0, 0, 0.05);
   z-index: 1;
+  border: 1px solid rgba(0, 0, 0, 0.05);
 
   @media (max-width: 768px) {
     padding: 2rem;
@@ -317,52 +312,51 @@ const LoginContainer = styled(motion.div)`
 `;
 
 const Header = styled.div`
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
+  text-align: center;
 `;
 
 const LogoContainer = styled.div`
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
 `;
 
 const LogoIcon = styled.div`
   color: #3b82f6;
   background: rgba(59, 130, 246, 0.1);
   padding: 0.75rem;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid rgba(59, 130, 246, 0.2);
 `;
 
 const LogoText = styled.div`
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.025em;
-  background: linear-gradient(135deg, #60a5fa 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 
   span {
-    color: #f8fafc;
-    -webkit-text-fill-color: #f8fafc;
+    color: #0d141b;
+    -webkit-text-fill-color: #0d141b;
   }
 `;
 
 const WelcomeMessage = styled(motion.div)`
   h1 {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #0d141b;
   }
 
   p {
-    color: #94a3b8;
+    color: #64748b;
     font-size: 0.95rem;
   }
 `;
@@ -378,8 +372,8 @@ const ErrorMessage = styled.div`
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
   border-radius: 0.5rem;
   color: #dc2626;
   font-size: 0.875rem;
@@ -393,13 +387,13 @@ const ErrorMessage = styled.div`
 const InputGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 `;
 
 const InputLabel = styled.label`
   font-size: 0.875rem;
   font-weight: 600;
-  color: #f1f5f9;
+  color: #0d141b;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 `;
@@ -413,28 +407,28 @@ const InputContainer = styled.div`
 const InputIcon = styled.div`
   position: absolute;
   left: 1rem;
-  color: #64748b;
+  color: #94a3b8;
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 1rem 1rem 1rem 3rem;
-  background: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  color: #f8fafc;
+  padding: 0.875rem 1rem 0.875rem 3rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #0d141b;
   font-size: 0.95rem;
   transition: all 0.2s ease;
 
   &:focus {
     outline: none;
     border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-    background: rgba(30, 41, 59, 0.8);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background: white;
   }
 
   &::placeholder {
-    color: #64748b;
+    color: #94a3b8;
   }
 `;
 
@@ -443,13 +437,13 @@ const PasswordToggle = styled.button`
   right: 1rem;
   background: none;
   border: none;
-  color: #64748b;
+  color: #94a3b8;
   cursor: pointer;
   padding: 0.25rem;
   transition: color 0.2s ease;
 
   &:hover {
-    color: #94a3b8;
+    color: #0d141b;
   }
 `;
 
@@ -470,8 +464,8 @@ const Checkbox = styled.input`
   width: 1rem;
   height: 1rem;
   border-radius: 4px;
-  border: 1px solid #475569;
-  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid #cbd5e1;
+  background: white;
   cursor: pointer;
 
   &:checked {
@@ -482,31 +476,31 @@ const Checkbox = styled.input`
 
 const CheckboxLabel = styled.label`
   font-size: 0.875rem;
-  color: #cbd5e1;
+  color: #64748b;
   cursor: pointer;
 `;
 
 const ForgotPassword = styled.button`
   background: none;
   border: none;
-  color: #60a5fa;
+  color: #3b82f6;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   transition: color 0.2s ease;
 
   &:hover {
-    color: #3b82f6;
+    color: #1d4ed8;
     text-decoration: underline;
   }
 `;
 
 const SubmitButton = styled.button`
   position: relative;
-  padding: 1rem 2rem;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  padding: 0.875rem 2rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   color: white;
   font-size: 1rem;
   font-weight: 600;
@@ -516,11 +510,11 @@ const SubmitButton = styled.button`
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
   }
 
   &:active {
@@ -631,128 +625,31 @@ const SocialButton = styled.button`
 `;
 
 const Footer = styled.div`
-  margin-top: 2.5rem;
+  margin-top: 2rem;
   text-align: center;
 
   p {
-    color: #94a3b8;
+    color: #64748b;
     font-size: 0.875rem;
     margin-bottom: 0.5rem;
   }
 `;
 
 const ContactLink = styled.a`
-  color: #60a5fa;
+  color: #3b82f6;
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s ease;
 
   &:hover {
-    color: #3b82f6;
+    color: #1d4ed8;
     text-decoration: underline;
   }
 `;
 
 const Copyright = styled.p`
-  color: #64748b !important;
+  color: #94a3b8 !important;
   font-size: 0.75rem !important;
-`;
-
-const FeaturesPanel = styled(motion.div)`
-  margin-left: 3rem;
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
-  padding: 3rem;
-  width: 100%;
-  max-width: 400px;
-  box-shadow:
-    0 20px 40px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-
-  @media (max-width: 1024px) {
-    display: none;
-  }
-`;
-
-const FeatureTitle = styled.h2`
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 2rem;
-  background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-`;
-
-const FeatureList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  margin-bottom: 3rem;
-`;
-
-const FeatureItem = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-
-  h4 {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #f1f5f9;
-    margin-bottom: 0.25rem;
-  }
-
-  p {
-    color: #94a3b8;
-    font-size: 0.875rem;
-    line-height: 1.4;
-  }
-`;
-
-const FeatureIcon = styled.div`
-  color: #3b82f6;
-  background: rgba(59, 130, 246, 0.1);
-  padding: 0.5rem;
-  border-radius: 8px;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  flex-shrink: 0;
-`;
-
-const Testimonial = styled.div`
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 16px;
-  padding: 1.5rem;
-  position: relative;
-`;
-
-const QuoteIcon = styled.div`
-  position: absolute;
-  top: -1rem;
-  left: 1.5rem;
-  font-size: 3rem;
-  color: rgba(59, 130, 246, 0.3);
-  font-family: serif;
-`;
-
-const Author = styled.div`
-  margin-top: 1rem;
-  display: flex;
-  flex-direction: column;
-
-  strong {
-    color: #f1f5f9;
-    font-size: 0.875rem;
-  }
-
-  span {
-    color: #94a3b8;
-    font-size: 0.75rem;
-  }
 `;
 
 export default LoginPage;

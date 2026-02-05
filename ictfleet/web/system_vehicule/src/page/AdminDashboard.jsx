@@ -1,38 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
 import AddVehicleModal from '../component/AddVehicleModal';
 import AddAccessoryModal from '../component/AddAccessoryModal';
+import BreakdownsReport from '../component/BreakdownsReport';
+import RepairRecordsReport from '../component/RepairRecordsReport';
 import UserProfileDropdown from '../component/UserProfileDropdown';
 import UserProfileModal from '../component/UserProfileModal';
 import VehicleDetailsPage from './VehicleDetailsPage';
 import NotificationsPage from './NotificationsPage';
 import AccessoriesPage from './AccessoriesPage';
 import UserManagementPage from './UserManagementPage';
-import { vehiclesAPI, accessoriesAPI, notificationsAPI, messagesAPI, isAdmin } from '../service/api';
+import ReportsPage from './ReportsPage';
+import { vehiclesAPI, accessoriesAPI, notificationsAPI, messagesAPI, activitiesAPI, isAdmin } from '../service';
 import { authAPI } from '../service/api';
 
 // Main Container
 const Container = styled.div`
   height: 100vh;
-  background-color: #f6f7f8;
+  width: 80vw;
+  background-color: #f8fafc;
   display: flex;
   flex-direction: column;
-  font-family: 'Manrope', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
 
   @media (min-width: 768px) {
     flex-direction: row;
+    margin-left: 300px;
   }
 `;
 
 // Sidebar
 const Sidebar = styled.aside`
-  width: 256px;
+  width: 300px;
   background: white;
   border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   min-height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  overflow-y: auto;
+  box-shadow: 1px 0 2px rgba(0, 0, 0, 0.05);
+  padding-top: 72px;
 
   @media (max-width: 767px) {
     display: none;
@@ -52,7 +64,7 @@ const MobileNav = styled.nav`
   justify-content: space-around;
   align-items: center;
   z-index: 1000;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
 
   @media (min-width: 768px) {
     display: none;
@@ -63,8 +75,8 @@ const MobileNavItem = styled.button`
   background: none;
   border: none;
   padding: 0.5rem;
-  border-radius: 0.5rem;
-  color: ${props => props.$active ? '#137fec' : '#64748b'};
+  border-radius: 8px;
+  color: ${props => props.$active ? '#3b82f6' : '#64748b'};
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -73,10 +85,11 @@ const MobileNavItem = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   min-width: 60px;
+  font-weight: 500;
 
   &:hover {
     background: #f1f5f9;
-    color: #137fec;
+    color: #3b82f6;
   }
 
   i {
@@ -129,28 +142,31 @@ const NavMenu = styled.nav`
 const NavItem = styled.a`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
   text-decoration: none;
   color: #64748b;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 600;
   transition: all 0.2s ease;
+  margin: 0.5rem 0;
 
   i {
     color: inherit;
+    font-size: 1.5rem;
   }
 
   &:hover {
     background: #f1f5f9;
-    color: #1e293b;
+    color: #0d141b;
   }
 
   &.active {
-    background: rgba(19, 127, 236, 0.1);
-    color: #137fec;
-    border-left: 4px solid #137fec;
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    border-radius: 8px;
+    font-weight: 700;
   }
 `;
 
@@ -186,9 +202,14 @@ const MainContent = styled.main`
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
+  
+  padding-top: 170px;
+  position: relative;
 
   @media (max-width: 767px) {
-    padding-bottom: 80px; /* Space for mobile nav */
+    height: calc(100vh - 170px - 80px);
+    padding-bottom: 80px;
   }
 `;
 
@@ -199,10 +220,20 @@ const TopNav = styled.header`
   justify-content: space-between;
   background: white;
   border-bottom: 1px solid #e2e8f0;
-  padding: 1rem 2rem;
-  position: sticky;
+  padding: 1.75rem 2.5rem;
+  position: fixed;
   top: 0;
-  z-index: 10;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  height: 170px;
+  min-height: 170px;
+  max-height: 170px;
+  
+  @media (min-width: 768px) {
+    left: 300px;
+  }
 `;
 
 const SearchContainer = styled.div`
@@ -303,7 +334,17 @@ const Divider = styled.div`
 const UserProfile = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  background: transparent;
+
+  &:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+  }
 `;
 
 const UserInfo = styled.div`
@@ -315,33 +356,37 @@ const UserInfo = styled.div`
   }
 
   p:first-child {
-    font-size: 0.875rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #0d141b;
     margin: 0;
+    letter-spacing: -0.3px;
   }
 
   p:last-child {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: #64748b;
-    margin: 0;
+    margin: 0.25rem 0 0 0;
+    font-weight: 500;
   }
 `;
 
 const UserAvatar = styled.div`
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 3.5rem;
+  height: 3.5rem;
   border-radius: 50%;
   background: center no-repeat;
   background-size: cover;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
 `;
 
 // Dashboard Content
 const DashboardContent = styled.div`
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 2.5rem;
+  max-width: 100%;
+  margin: 0;
   width: 100%;
   flex: 1;
   display: flex;
@@ -353,9 +398,6 @@ const SectionContent = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
   min-height: 300px;
 `;
 
@@ -771,11 +813,11 @@ const VehicleGrid = styled.div`
     grid-template-columns: repeat(2, 1fr);
   }
 
-  @media (min-width: 768px) {
+  @media (min-width: 1024px) {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  @media (min-width: 1024px) {
+  @media (min-width: 1280px) {
     grid-template-columns: repeat(4, 1fr);
   }
 `;
@@ -802,8 +844,13 @@ const VehicleImage = styled.div`
   aspect-ratio: 16/9;
   background-size: cover;
   background-position: center;
+  background-color: #f1f5f9;
   position: relative;
   transition: transform 0.5s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 
   ${VehicleCard}:hover & {
     transform: scale(1.05);
@@ -1531,6 +1578,80 @@ const PaginationDots = styled.span`
   padding: 0 0.25rem;
 `;
 
+// Recent Activity Section
+const RecentActivitySection = styled.div`
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+`;
+
+const RecentActivityHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+
+  div h3 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0d141b;
+    margin: 0 0 0.25rem 0;
+  }
+
+  div p {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin: 0;
+  }
+`;
+
+const RefreshButton = styled.button`
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f1f5f9;
+    color: #0d141b;
+  }
+
+  &:active {
+    transform: rotate(180deg);
+  }
+`;
+
+const NoActivityMessage = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+
+  p:first-of-type {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #64748b;
+    margin: 1rem 0 0.25rem 0;
+  }
+
+  p:last-of-type {
+    font-size: 0.875rem;
+    color: #94a3b8;
+    margin: 0;
+  }
+`;
+
 // Footer Info
 const FooterInfo = styled.div`
   background: rgba(19, 127, 236, 0.05);
@@ -1617,6 +1738,7 @@ const FooterButton = styled.button`
 const AdminDashboard = ({ onLogout, currentUser }) => {
   const [activeSection, setActiveSection] = useState('overview');
   const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState(null);
   const [isAddAccessoryModalOpen, setIsAddAccessoryModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -1629,9 +1751,16 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
   const [users, setUsers] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [recentNotifications, setRecentNotifications] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
     // Initialize Feather Icons
@@ -1649,12 +1778,12 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
       setError(null);
 
       // Fetch data in parallel
-      const [vehiclesRes, accessoriesRes, notificationsRes, messagesRes, recentNotificationsRes] = await Promise.allSettled([
+      const [vehiclesRes, accessoriesRes, notificationsRes, messagesRes, recentActivitiesRes] = await Promise.allSettled([
         vehiclesAPI.getVehicles(),
         accessoriesAPI.getAccessories(),
         notificationsAPI.getUnread(),
         messagesAPI.getInbox(),
-        notificationsAPI.getNotifications({ limit: 5 }) // Get recent 5 notifications for activity feed
+        activitiesAPI.getRecentActivities() // Get recent activities for activity feed
       ]);
 
       // Handle vehicles
@@ -1677,9 +1806,14 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
         setMessages(messagesRes.value);
       }
 
-      // Handle recent notifications for activity feed
-      if (recentNotificationsRes.status === 'fulfilled') {
-        setRecentNotifications(recentNotificationsRes.value?.results || []);
+      // Handle recent activities for activity feed
+      if (recentActivitiesRes.status === 'fulfilled') {
+        const activities = recentActivitiesRes.value;
+        // Handle both paginated and non-paginated responses
+        const activitiesArray = Array.isArray(activities) 
+          ? activities 
+          : (activities?.results || []);
+        setRecentActivities(activitiesArray);
       }
 
     } catch (err) {
@@ -1690,9 +1824,18 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
     }
   };
 
-  const handleViewDetails = (vehicle) => {
-    setSelectedVehicle(vehicle);
-    setActiveSection('vehicles'); // Ensure we're on vehicles section
+  const handleViewDetails = async (vehicle) => {
+    try {
+      // Fetch full vehicle details with all fields (mileage, fuel_type, color, etc.)
+      const fullVehicleData = await vehiclesAPI.getVehicle(vehicle.id);
+      setSelectedVehicle(fullVehicleData);
+      setActiveSection('vehicles'); // Ensure we're on vehicles section
+    } catch (error) {
+      console.error('Error fetching vehicle details:', error);
+      // Fallback to the vehicle from the list if fetch fails
+      setSelectedVehicle(vehicle);
+      setActiveSection('vehicles');
+    }
   };
 
   const handleBackToDashboard = () => {
@@ -1700,9 +1843,8 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
   };
 
   const handleEditVehicle = async (vehicle) => {
-    // TODO: Implement edit functionality with API
-    console.log('Edit vehicle:', vehicle);
-    setIsDetailsModalOpen(false);
+    setEditingVehicle(vehicle);
+    setIsAddVehicleModalOpen(true);
   };
 
   const handleDeleteVehicle = async (vehicleId) => {
@@ -1710,31 +1852,59 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
       await vehiclesAPI.deleteVehicle(vehicleId);
       // Refresh vehicles list
       const updatedVehicles = await vehiclesAPI.getVehicles();
-      setVehicles(updatedVehicles);
+      setVehicles(updatedVehicles?.results || []);
     } catch (error) {
       console.error('Error deleting vehicle:', error);
       // TODO: Show error message to user
     }
   };
 
-  const handleSaveVehicle = async (vehicleData) => {
-    try {
-      await vehiclesAPI.createVehicle(vehicleData);
-      // Refresh vehicles list
-      const updatedVehicles = await vehiclesAPI.getVehicles();
-      setVehicles(updatedVehicles);
-      setIsAddVehicleModalOpen(false);
-    } catch (error) {
-      console.error('Error creating vehicle:', error);
-      // TODO: Show error message to user
+  const handleVehicleStatusChange = (vehicleId, newStatus) => {
+    // Update the vehicle in the local state
+    setVehicles(prev => prev.map(v => 
+      v.id === vehicleId ? { ...v, status: newStatus } : v
+    ));
+    // Also update selectedVehicle if it's the one being changed
+    if (selectedVehicle && selectedVehicle.id === vehicleId) {
+      setSelectedVehicle(prev => ({ ...prev, status: newStatus }));
     }
   };
+
+  const handleSaveVehicle = async (vehicleData, editingVehicle) => {
+    try {
+      if (editingVehicle) {
+        // Update existing vehicle
+        await vehiclesAPI.updateVehicle(editingVehicle.id, vehicleData);
+      } else {
+        // Create new vehicle
+        await vehiclesAPI.createVehicle(vehicleData);
+      }
+      
+      // Refresh vehicles list after successful API call
+      const updatedVehicles = await vehiclesAPI.getVehicles();
+      // Handle both response formats: {results: []} and direct array
+      const vehiclesList = Array.isArray(updatedVehicles) 
+        ? updatedVehicles 
+        : (updatedVehicles?.results || []);
+      setVehicles(vehiclesList);
+      
+      setIsAddVehicleModalOpen(false);
+      setEditingVehicle(null);
+      setSelectedVehicle(null); // Clear selected vehicle to show list view
+    } catch (error) {
+      console.error('Error saving vehicle:', error);
+      throw error; // Re-throw so the modal can catch and display error
+    }
+  };
+
 
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: 'bar-chart-2' },
     { id: 'vehicles', label: 'Vehicles', icon: 'truck' },
     { id: 'accounts', label: 'Accounts', icon: 'users' },
     { id: 'accessories', label: 'Accessories', icon: 'package' },
+    { id: 'repairs', label: 'Repairs', icon: 'tool' },
+    { id: 'breakdowns', label: 'Breakdowns', icon: 'alert-circle' },
     { id: 'messages', label: 'Messages', icon: 'message-circle' },
     { id: 'reports', label: 'Reports', icon: 'bar-chart' },
   ];
@@ -1783,14 +1953,17 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
     }
   ];
 
-  // Transform notifications into activity data
-  const activityData = recentNotifications.map(notification => ({
-    id: notification.id,
-    user: notification.created_by_name || 'System',
-    action: notification.message,
-    time: new Date(notification.created_at).toLocaleString(),
-    avatar: notification.created_by_name ? `https://ui-avatars.com/api/?name=${encodeURIComponent(notification.created_by_name)}&background=random` : null,
-    isSystem: !notification.created_by_name
+  // Transform activities into activity data
+  const activityData = recentActivities.map(activity => ({
+    id: activity.id,
+    user: activity.user_name && activity.user_last_name 
+      ? `${activity.user_name} ${activity.user_last_name}` 
+      : (activity.user_name || 'System'),
+    action: activity.description,
+    time: new Date(activity.created_at).toLocaleString(),
+    avatar: activity.user_avatar,
+    isSystem: !activity.user,
+    icon: activity.icon
   }));
 
   // Transform accessories data from API
@@ -2051,6 +2224,7 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
 
   const handleCloseAddVehicleModal = () => {
     setIsAddVehicleModalOpen(false);
+    setEditingVehicle(null);
   };
 
   const handleCloseAddAccessoryModal = () => {
@@ -2066,9 +2240,13 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
     setIsProfileModalOpen(true);
   };
 
-  const handleProfileUpdate = (updatedUser) => {
-    // Update current user data if needed
-    console.log('Profile updated:', updatedUser);
+  const handleProfileUpdate = async () => {
+    // Refresh current user data from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const parsedUser = JSON.parse(userData);
+      setCurrentUser(parsedUser);
+    }
   };
 
   return (
@@ -2130,34 +2308,34 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
         </SidebarBottom>
       </Sidebar>
 
-      <MainContent>
-        <TopNav>
-          <SearchContainer>
-            <SearchInput>
-              <input
-                type="text"
-                placeholder="Search vehicles, drivers, or reports..."
-              />
-            </SearchInput>
-          </SearchContainer>
-
-          <TopNavRight>
-            <NotificationButton>
-              <i data-feather="bell" className="fi-icon"></i>
-            </NotificationButton>
-            <SettingsButton>
-              <i data-feather="settings" className="fi-icon"></i>
-            </SettingsButton>
-            <Divider />
-            <UserProfileDropdown
-              currentUser={currentUser}
-              onLogout={onLogout}
-              onViewProfile={handleViewProfile}
+      <TopNav>
+        <SearchContainer>
+          <SearchInput>
+            <input
+              type="text"
+              placeholder="Search vehicles, drivers, or reports..."
             />
-          </TopNavRight>
-        </TopNav>
+          </SearchInput>
+        </SearchContainer>
 
-        <DashboardContent>
+        <TopNavRight>
+          <NotificationButton>
+            <i data-feather="bell" className="fi-icon"></i>
+          </NotificationButton>
+          <SettingsButton>
+            <i data-feather="settings" className="fi-icon"></i>
+          </SettingsButton>
+          <Divider />
+          <UserProfileDropdown
+            currentUser={currentUser}
+            onLogout={onLogout}
+            onViewProfile={handleViewProfile}
+          />
+        </TopNavRight>
+      </TopNav>
+
+      <MainContent>
+      <DashboardContent>
           {activeSection === 'overview' && (
             <>
               <DashboardHeader>
@@ -2183,114 +2361,83 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
             ))}
           </KPIGrid>
 
-          <ChartsSection>
-            <ChartContainer>
-              <ChartHeader>
-                <ChartTitle>
-                  <h3>Fleet Status Overview</h3>
-                  <p>Current vehicle status distribution</p>
-                </ChartTitle>
-                <ChartControls>
-                  <TrendIndicator>{vehicles.filter(v => v.status === 'active').length} Active</TrendIndicator>
-                  <TimeSelector>
-                    <option>Current Status</option>
-                    <option>Historical View</option>
-                  </TimeSelector>
-                </ChartControls>
-              </ChartHeader>
-
-              <ChartBody>
-                <BarChart>
-                  {[
-                    { label: 'Active', count: vehicles.filter(v => v.status === 'active').length },
-                    { label: 'Maint.', count: vehicles.filter(v => v.status === 'maintenance').length },
-                    { label: 'Inactive', count: vehicles.filter(v => v.status === 'inactive').length },
-                    { label: 'Retired', count: vehicles.filter(v => v.status === 'retired').length }
-                  ].map((item, index) => {
-                    const maxCount = Math.max(...vehicles.map(v => 1)) || 1;
-                    const height = vehicles.length > 0 ? (item.count / vehicles.length) * 100 : 0;
-                    return (
-                      <Bar key={index}>
-                        <BarFill style={{ height: `${Math.max(height, 5)}%` }} />
-                        <BarLabel>{item.label}</BarLabel>
-                      </Bar>
-                    );
-                  })}
-                </BarChart>
-
-                <ChartStats>
-                  <StatItem>
-                    <p>Most Common</p>
-                    <p>{vehicles.length > 0 ? 'Active' : 'No data'}</p>
-                  </StatItem>
-                  <StatItem>
-                    <p>Maintenance</p>
-                    <p>{vehicles.filter(v => v.status === 'maintenance').length} vehicles</p>
-                  </StatItem>
-                </ChartStats>
-              </ChartBody>
-            </ChartContainer>
-
-            <ActivityFeed>
-              <ActivityHeader>
-                <h3>Recent Activity</h3>
-              </ActivityHeader>
+          <RecentActivitySection>
+              <RecentActivityHeader>
+                <div>
+                  <h3>Recent Activity</h3>
+                  <p>Real-time updates from your fleet operations</p>
+                </div>
+                <RefreshButton onClick={() => fetchNotifications()}>
+                  <span className="material-symbols-outlined">refresh</span>
+                </RefreshButton>
+              </RecentActivityHeader>
 
               <ActivityList>
-                {activityData.map((activity) => (
-                  <ActivityItem key={activity.id}>
-                    {activity.avatar ? (
-                      <ActivityAvatar
-                        style={{ backgroundImage: `url('${activity.avatar}')` }}
-                      />
-                    ) : (
-                      <div style={{
-                        width: '40px',
-                        height: '40px',
-                        background: 'rgba(19, 127, 236, 0.1)',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#137fec'
-                      }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>inventory</span>
-                      </div>
-                    )}
-                    <ActivityContent>
-                      <p>
-                        <span>{activity.user}</span> {activity.action}
-                      </p>
-                      <ActivityTime>
-                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>schedule</span>
-                        {activity.time}
-                      </ActivityTime>
-                    </ActivityContent>
-                  </ActivityItem>
-                ))}
+                {activityData.length > 0 ? (
+                  activityData.map((activity) => (
+                    <ActivityItem key={activity.id}>
+                      {activity.avatar ? (
+                        <ActivityAvatar
+                          style={{ backgroundImage: `url('${activity.avatar}')` }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          background: activity.isSystem ? 'rgba(107, 114, 128, 0.1)' : 'rgba(19, 127, 236, 0.1)',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: activity.isSystem ? '#6b7280' : '#137fec'
+                        }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                            {activity.isSystem ? 'settings' : 'notifications'}
+                          </span>
+                        </div>
+                      )}
+                      <ActivityContent>
+                        <p>
+                          <span>{activity.user}</span> {activity.action}
+                        </p>
+                        <ActivityTime>
+                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>schedule</span>
+                          {activity.time}
+                        </ActivityTime>
+                      </ActivityContent>
+                    </ActivityItem>
+                  ))
+                ) : (
+                  <NoActivityMessage>
+                    <span className="material-symbols-outlined" style={{ fontSize: '48px', opacity: 0.5 }}>inbox</span>
+                    <p>No recent activity</p>
+                    <p>Activities will appear here as they happen</p>
+                  </NoActivityMessage>
+                )}
               </ActivityList>
 
               <ActivityFooter>
-                <ViewAllButton>View Full Activity Log</ViewAllButton>
+                <ViewAllButton onClick={() => setActiveSection('notifications')}>
+                  View All Notifications
+                </ViewAllButton>
               </ActivityFooter>
-            </ActivityFeed>
-          </ChartsSection>
+            </RecentActivitySection>
 
-          <FooterInfo>
-            <FooterContent>
-              <FooterIcon>
-                <span className="material-symbols-outlined">help_center</span>
-              </FooterIcon>
-              <div>
-                <p>Need support with fleet operations?</p>
-                <p>Our technical team is available 24/7 for campus emergencies.</p>
-              </div>
-            </FooterContent>
-            <FooterActions>
-              <FooterButton>Contact Support</FooterButton>
-              <FooterButton $primary>Emergency Portal</FooterButton>
-            </FooterActions>
-          </FooterInfo>
+            <FooterInfo>
+              <FooterContent>
+                <FooterIcon>
+                  <span className="material-symbols-outlined">help_center</span>
+                </FooterIcon>
+                <div>
+                  <p>Need support with fleet operations?</p>
+                  <p>Our technical team is available 24/7 for campus emergencies.</p>
+                </div>
+              </FooterContent>
+              <FooterActions>
+                <FooterButton>Contact Support</FooterButton>
+                <FooterButton $primary>Emergency Portal</FooterButton>
+              </FooterActions>
+            </FooterInfo>
             </>
           )}
 
@@ -2438,10 +2585,30 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
             />
           )}
 
+          {activeSection === 'repairs' && (
+            <RepairRecordsReport
+              onBack={() => setActiveSection('overview')}
+            />
+          )}
+
+          {activeSection === 'breakdowns' && (
+            <BreakdownsReport
+              onBack={() => setActiveSection('overview')}
+            />
+          )}
+
+          {activeSection === 'reports' && (
+            <ReportsPage
+              onBack={() => setActiveSection('overview')}
+            />
+          )}
+
           {activeSection === 'vehicles' && selectedVehicle ? (
             <VehicleDetailsPage
               vehicle={selectedVehicle}
               onBack={handleBackToDashboard}
+              onEdit={handleEditVehicle}
+              onStatusChange={handleVehicleStatusChange}
               showHeader={false}
             />
           ) : activeSection === 'vehicles' && (
@@ -2483,11 +2650,42 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
                 ) : (
                   vehicles.map((vehicle) => (
                     <VehicleCard key={vehicle.id}>
-                      <VehicleImage style={{
-                        backgroundImage: vehicle.image ? `url('http://127.0.0.1:8001${vehicle.image}')` : 'none',
-                        backgroundColor: '#f1f5f9'
-                      }}>
-                        <VehicleStatus status={vehicle.status}>
+                      <VehicleImage style={{ position: 'relative', overflow: 'hidden' }}>
+                        {vehicle.image && vehicle.image.trim() ? (
+                          <img 
+                            src={vehicle.image.startsWith('http') ? vehicle.image : `http://127.0.0.1:8001${vehicle.image}`}
+                            alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              objectPosition: 'center',
+                              position: 'absolute',
+                              top: 0,
+                              left: 0
+                            }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: '#f1f5f9'
+                          }}>
+                            <div style={{
+                              fontSize: '3rem',
+                              color: '#cbd5e1'
+                            }}>
+                              🚗
+                            </div>
+                          </div>
+                        )}
+                        <VehicleStatus status={vehicle.status} style={{ position: 'relative', zIndex: 20 }}>
                           {vehicle.status}
                         </VehicleStatus>
                       </VehicleImage>
@@ -2554,6 +2752,7 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
         isOpen={isAddVehicleModalOpen}
         onClose={handleCloseAddVehicleModal}
         onSave={handleSaveVehicle}
+        editingVehicle={editingVehicle}
       />
 
       <AddAccessoryModal
@@ -2568,6 +2767,7 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
         currentUser={currentUser}
         onProfileUpdate={handleProfileUpdate}
       />
+
     </Container>
   );
 };

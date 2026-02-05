@@ -9,7 +9,7 @@ class VehicleSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Vehicle
         fields = [
-            'id', 'make', 'model', 'year', 'license_plate', 'vin', 'status',
+            'id', 'make', 'model', 'year', 'license_plate', 'vin', 'status', 'vehicle_type',
             'mileage', 'fuel_type', 'color', 'purchase_date', 'purchase_price',
             'image', 'image_url', 'assigned_driver', 'assigned_driver_name',
             'created_at', 'updated_at'
@@ -23,7 +23,7 @@ class VehicleListSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Vehicle
         fields = [
-            'id', 'make', 'model', 'year', 'license_plate', 'status',
+            'id', 'make', 'model', 'year', 'license_plate', 'status', 'vehicle_type',
             'mileage', 'assigned_driver_name', 'image'
         ]
 

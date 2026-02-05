@@ -32,23 +32,23 @@ const FileInput = styled.input`
 `;
 
 const UploadIcon = styled.div`
-  width: 4rem;
-  height: 4rem;
+  width: 2rem;
+  height: 2rem;
   border-radius: 50%;
   background: rgba(19, 127, 236, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #137fec;
-  margin: 0 auto 1rem;
+  margin: 0 auto 0.5rem;
 
   span {
-    font-size: 1.875rem;
+    font-size: 1rem;
   }
 `;
 
 const UploadTitle = styled.h3`
-  font-size: 1.125rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: #0d141b;
   margin: 0 0 0.25rem 0;
@@ -138,8 +138,8 @@ const ImagePreview = styled.div`
 `;
 
 const PreviewImage = styled.img`
-  width: 120px;
-  height: 80px;
+  width: 80px;
+  height: 60px;
   object-fit: cover;
   border-radius: 0.5rem;
   border: 2px solid #e5e7eb;
@@ -170,18 +170,15 @@ const RemoveImageButton = styled.button`
 const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
   const [formData, setFormData] = useState({
     name: '',
-    sku: '',
-    category: 'other',
     description: '',
     price: '',
     stock_level: '',
-    min_stock_level: '5',
-    supplier: '',
-    location: '',
-    image: null
+    image: null,
+    receipt: null
   });
 
   const [imagePreview, setImagePreview] = useState(null);
+  const [receiptPreview, setReceiptPreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -220,6 +217,17 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
     }
   };
 
+  const handleReceiptChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData(prev => ({
+        ...prev,
+        receipt: file
+      }));
+      setReceiptPreview(file.name);
+    }
+  };
+
   const removeImage = () => {
     setFormData(prev => ({
       ...prev,
@@ -228,17 +236,21 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
     setImagePreview(null);
   };
 
+  const removeReceipt = () => {
+    setFormData(prev => ({
+      ...prev,
+      receipt: null
+    }));
+    setReceiptPreview(null);
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
     }
-
-    if (!formData.sku.trim()) {
-      newErrors.sku = 'SKU is required';
-    }
-
+  
     if (!formData.price || parseFloat(formData.price) <= 0) {
       newErrors.price = 'Valid price is required';
     }
@@ -264,8 +276,7 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
       const accessoryData = {
         ...formData,
         price: parseFloat(formData.price),
-        stock_level: parseInt(formData.stock_level),
-        min_stock_level: parseInt(formData.min_stock_level)
+        stock_level: parseInt(formData.stock_level)
       };
 
       await accessoriesAPI.createAccessory(accessoryData);
@@ -273,7 +284,6 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
       // Reset form
       setFormData({
         name: '',
-        sku: '',
         category: 'other',
         description: '',
         price: '',
@@ -281,7 +291,8 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
         min_stock_level: '5',
         supplier: '',
         location: '',
-        image: null
+        image: null,
+        receipt: null
       });
       setImagePreview(null);
       setErrors({});
@@ -302,7 +313,6 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
     // Reset form when closing
     setFormData({
       name: '',
-      sku: '',
       category: 'other',
       description: '',
       price: '',
@@ -310,9 +320,11 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
       min_stock_level: '5',
       supplier: '',
       location: '',
-      image: null
+      image: null,
+      receipt: null
     });
     setImagePreview(null);
+    setReceiptPreview(null);
     setErrors({});
     onClose();
   };
@@ -325,34 +337,91 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
       size="large"
     >
       <form onSubmit={handleSubmit}>
-        {/* Image Upload Section */}
-        <UploadSection onClick={() => document.getElementById('accessory-image-input').click()}>
-          <FileInput
-            id="accessory-image-input"
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-          />
-          <UploadIcon>
-            <i data-feather="camera" className="fi-icon"></i>
-          </UploadIcon>
-          <UploadTitle>Upload Accessory Image</UploadTitle>
-          <UploadDescription>
-            Choose an image file or drag and drop it here
-          </UploadDescription>
-          <SelectFileButton type="button">
-            Select File
-          </SelectFileButton>
-        </UploadSection>
+        {/* File Upload Sections */}
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+          {/* Image Upload Section */}
+          <div style={{ flex: 1 }}>
+            <UploadSection onClick={() => document.getElementById('accessory-image-input').click()}>
+              <FileInput
+                id="accessory-image-input"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+              />
+              <UploadIcon>
+                <i data-feather="camera" className="fi-icon"></i>
+              </UploadIcon>
+              <UploadTitle>Upload Image</UploadTitle>
+              <UploadDescription>
+                Choose image file
+              </UploadDescription>
+              <SelectFileButton type="button">
+                Select
+              </SelectFileButton>
+            </UploadSection>
 
-        {imagePreview && (
-          <ImagePreview>
-            <PreviewImage src={imagePreview} alt="Accessory preview" />
-            <RemoveImageButton type="button" onClick={removeImage}>
-              ×
-            </RemoveImageButton>
-          </ImagePreview>
-        )}
+            {imagePreview && (
+              <ImagePreview>
+                <PreviewImage src={imagePreview} alt="Accessory preview" />
+                <RemoveImageButton type="button" onClick={removeImage}>
+                  ×
+                </RemoveImageButton>
+              </ImagePreview>
+            )}
+          </div>
+
+          {/* Receipt Upload Section */}
+          <div style={{ flex: 1 }}>
+            <UploadSection onClick={() => document.getElementById('accessory-receipt-input').click()}>
+              <FileInput
+                id="accessory-receipt-input"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={handleReceiptChange}
+              />
+              <UploadIcon>
+                <i data-feather="file-text" className="fi-icon"></i>
+              </UploadIcon>
+              <UploadTitle>Upload Receipt</UploadTitle>
+              <UploadDescription>
+                Choose receipt file
+              </UploadDescription>
+              <SelectFileButton type="button">
+                Select
+              </SelectFileButton>
+            </UploadSection>
+
+            {receiptPreview && (
+              <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#f8fafc', borderRadius: '0.25rem', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <i data-feather="file-text" className="fi-icon" style={{ color: '#137fec', fontSize: '0.75rem' }}></i>
+                    <span style={{ fontSize: '0.75rem', color: '#0d141b' }}>{receiptPreview}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removeReceipt}
+                    style={{
+                      background: '#dc2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '1rem',
+                      height: '1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.5rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Basic Information */}
         <SectionHeader>
@@ -365,29 +434,26 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
         <FormGrid>
           <FormField>
             <FieldLabel htmlFor="name">Name *</FieldLabel>
-            <InputField
+            <input
               id="name"
               type="text"
               placeholder="Enter accessory name"
               value={formData.name}
-              onChange={(value) => handleInputChange('name', value)}
-              error={errors.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              style={{
+                padding: '0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                fontSize: '0.875rem',
+                width: '100%'
+              }}
             />
+            {errors.name && <ErrorMessage>{errors.name}</ErrorMessage>}
           </FormField>
 
-          <FormField>
-            <FieldLabel htmlFor="sku">SKU *</FieldLabel>
-            <InputField
-              id="sku"
-              type="text"
-              placeholder="Enter SKU"
-              value={formData.sku}
-              onChange={(value) => handleInputChange('sku', value)}
-              error={errors.sku}
-            />
-          </FormField>
 
-          <FormField>
+
+          {/* <FormField>
             <FieldLabel htmlFor="category">Category</FieldLabel>
             <select
               id="category"
@@ -407,67 +473,95 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
                 </option>
               ))}
             </select>
-          </FormField>
+          </FormField> */}
 
           <FormField>
             <FieldLabel htmlFor="price">Price *</FieldLabel>
-            <InputField
+            <input
               id="price"
               type="number"
               step="0.01"
               placeholder="0.00"
               value={formData.price}
-              onChange={(value) => handleInputChange('price', value)}
-              error={errors.price}
+              onChange={(e) => handleInputChange('price', e.target.value)}
+              style={{
+                padding: '0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                fontSize: '0.875rem',
+                width: '100%'
+              }}
             />
+            {errors.price && <ErrorMessage>{errors.price}</ErrorMessage>}
           </FormField>
         </FormGrid>
 
         {/* Stock Information */}
-        <SectionHeader style={{ marginTop: '2rem' }}>
+        {/* <SectionHeader style={{ marginTop: '2rem' }}>
           <SectionIcon>
             <i data-feather="package" className="fi-icon"></i>
           </SectionIcon>
           <SectionTitle>Stock Information</SectionTitle>
-        </SectionHeader>
+        </SectionHeader> */}
 
         <FormGrid>
           <FormField>
             <FieldLabel htmlFor="stock_level">Initial Stock Level *</FieldLabel>
-            <InputField
+            <input
               id="stock_level"
               type="number"
               placeholder="0"
               value={formData.stock_level}
-              onChange={(value) => handleInputChange('stock_level', value)}
-              error={errors.stock_level}
+              onChange={(e) => handleInputChange('stock_level', e.target.value)}
+              style={{
+                padding: '0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                fontSize: '0.875rem',
+                width: '100%'
+              }}
             />
+            {errors.stock_level && <ErrorMessage>{errors.stock_level}</ErrorMessage>}
           </FormField>
 
-          <FormField>
+          {/* <FormField>
             <FieldLabel htmlFor="min_stock_level">Minimum Stock Level</FieldLabel>
-            <InputField
+            <input
               id="min_stock_level"
               type="number"
               placeholder="5"
               value={formData.min_stock_level}
-              onChange={(value) => handleInputChange('min_stock_level', value)}
+              onChange={(e) => handleInputChange('min_stock_level', e.target.value)}
+              style={{
+                padding: '0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                fontSize: '0.875rem',
+                width: '100%'
+              }}
             />
             <FieldHelp>Alert when stock falls below this level</FieldHelp>
-          </FormField>
+          </FormField> */}
 
-          <FormField>
+          {/* <FormField>
             <FieldLabel htmlFor="supplier">Supplier</FieldLabel>
-            <InputField
+            <input
               id="supplier"
               type="text"
               placeholder="Enter supplier name"
               value={formData.supplier}
-              onChange={(value) => handleInputChange('supplier', value)}
+              onChange={(e) => handleInputChange('supplier', e.target.value)}
+              style={{
+                padding: '0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                fontSize: '0.875rem',
+                width: '100%'
+              }}
             />
-          </FormField>
+          </FormField> */}
 
-          <FormField>
+          {/* <FormField>
             <FieldLabel htmlFor="location">Warehouse Location</FieldLabel>
             <InputField
               id="location"
@@ -476,7 +570,7 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
               value={formData.location}
               onChange={(value) => handleInputChange('location', value)}
             />
-          </FormField>
+          </FormField> */}
         </FormGrid>
 
         {/* Description */}

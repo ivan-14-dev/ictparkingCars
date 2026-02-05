@@ -9,14 +9,16 @@ const DropdownContainer = styled.div`
 const UserProfile = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  transition: background-color 0.2s ease;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  background: transparent;
 
   &:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(59, 130, 246, 0.1);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
   }
 `;
 
@@ -29,27 +31,31 @@ const UserInfo = styled.div`
   }
 
   p:first-child {
-    font-size: 0.875rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #0d141b;
     margin: 0;
+    letter-spacing: -0.3px;
   }
 
   p:last-child {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: #64748b;
-    margin: 0;
+    margin: 0.25rem 0 0 0;
+    font-weight: 500;
   }
 `;
 
 const UserAvatar = styled.div`
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 3.5rem;
+  height: 3.5rem;
   border-radius: 50%;
   background: center no-repeat;
   background-size: cover;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #e2e8f0;
   position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
 
   &::after {
     content: '';

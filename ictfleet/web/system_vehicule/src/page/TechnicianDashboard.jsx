@@ -1,32 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import AddAccessoryModal from '../component/AddAccessoryModal';
+import BreakdownReportModal from '../component/BreakdownReportModal';
+import RepairRecordModal from '../component/RepairRecordModal';
+import RepairRecordsReport from '../component/RepairRecordsReport';
 import UserProfileDropdown from '../component/UserProfileDropdown';
 import UserProfileModal from '../component/UserProfileModal';
-import { isMechanic, vehiclesAPI, accessoriesAPI } from '../service/api';
+import AccessoriesPage from './AccessoriesPage';
+import { isMechanic, vehiclesAPI, accessoriesAPI, messagesAPI, authAPI, breakdownsAPI } from '../service/api';
 
 // Main Container
 const Container = styled.div`
   height: 100vh;
-  background-color: #f6f7f8;
+  width: 80vw;
+  background-color: #f8fafc;
   display: flex;
   flex-direction: column;
-  font-family: 'Manrope', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
 
   @media (min-width: 768px) {
     flex-direction: row;
+    margin-left: 300px;
   }
 `;
 
 // Sidebar
 const Sidebar = styled.aside`
-  width: 256px;
+  width: 300px;
   background: white;
   border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   min-height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  overflow-y: auto;
+  box-shadow: 1px 0 2px rgba(0, 0, 0, 0.05);
+  padding-top: 72px;
 
   @media (max-width: 767px) {
     display: none;
@@ -46,7 +59,7 @@ const MobileNav = styled.nav`
   justify-content: space-around;
   align-items: center;
   z-index: 1000;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
 
   @media (min-width: 768px) {
     display: none;
@@ -123,28 +136,31 @@ const NavMenu = styled.nav`
 const NavItem = styled.a`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
   text-decoration: none;
   color: #64748b;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 600;
   transition: all 0.2s ease;
+  margin: 0.5rem 0;
 
   i {
     color: inherit;
+    font-size: 1.5rem;
   }
 
   &:hover {
     background: #f1f5f9;
-    color: #1e293b;
+    color: #0d141b;
   }
 
   &.active {
-    background: rgba(19, 127, 236, 0.1);
-    color: #137fec;
-    border-left: 4px solid #137fec;
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    border-radius: 8px;
+    font-weight: 700;
   }
 `;
 
@@ -159,18 +175,23 @@ const NewAccessoryButton = styled.button`
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.625rem;
-  background: #137fec;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   color: white;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: #137fec / 0.9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 
@@ -180,8 +201,13 @@ const MainContent = styled.main`
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
+  
+  padding-top: 120px;
+  position: relative;
 
   @media (max-width: 767px) {
+    height: calc(100vh - 120px - 80px);
     padding-bottom: 80px; /* Space for mobile nav */
   }
 `;
@@ -193,10 +219,20 @@ const TopNav = styled.header`
   justify-content: space-between;
   background: white;
   border-bottom: 1px solid #e2e8f0;
-  padding: 1rem 2rem;
-  position: sticky;
+  padding: 1.75rem 2.5rem;
+  position: fixed;
   top: 0;
-  z-index: 10;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  height: 150px;
+  min-height: 150px;
+  max-height: 150px;
+  
+  @media (min-width: 768px) {
+    left: 300px;
+  }
 `;
 
 const SearchContainer = styled.div`
@@ -297,7 +333,17 @@ const Divider = styled.div`
 const UserProfile = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  background: transparent;
+
+  &:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+  }
 `;
 
 const UserInfo = styled.div`
@@ -309,33 +355,37 @@ const UserInfo = styled.div`
   }
 
   p:first-child {
-    font-size: 0.875rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #0d141b;
     margin: 0;
+    letter-spacing: -0.3px;
   }
 
   p:last-child {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: #64748b;
-    margin: 0;
+    margin: 0.25rem 0 0 0;
+    font-weight: 500;
   }
 `;
 
 const UserAvatar = styled.div`
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 3.5rem;
+  height: 3.5rem;
   border-radius: 50%;
   background: center no-repeat;
   background-size: cover;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
 `;
 
 // Dashboard Content
 const DashboardContent = styled.div`
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 2.5rem;
+  max-width: 100%;
+  margin: 0;
   width: 100%;
   flex: 1;
   display: flex;
@@ -348,6 +398,7 @@ const SectionContent = styled.div`
   display: flex;
   flex-direction: column;
   min-height: 300px;
+  padding: 5rem 5rem 0 5rem;
 `;
 
 // Placeholder Grid for sections without data
@@ -364,10 +415,10 @@ const PlaceholderGrid = styled.div`
 
 const PlaceholderCard = styled.div`
   background: white;
-  border-radius: 0.75rem;
+  border-radius: 10px;
   padding: 1.5rem;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   opacity: 0.6;
   display: flex;
   flex-direction: column;
@@ -375,6 +426,12 @@ const PlaceholderCard = styled.div`
   justify-content: center;
   text-align: center;
   min-height: 120px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    opacity: 0.8;
+  }
 `;
 
 const DashboardHeader = styled.div`
@@ -516,18 +573,209 @@ const ActionDescription = styled.p`
   margin: 0;
 `;
 
+// Breakdown Detail Modal Styles
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+`;
+
+const ModalContainer = styled.div`
+  background: white;
+  border-radius: 1rem;
+  max-width: 600px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  animation: slideUp 0.3s ease-out;
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+
+const ModalHeader = styled.div`
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  padding: 1.5rem 2rem;
+  color: white;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+`;
+
+const ModalHeaderContent = styled.div`
+  flex: 1;
+`;
+
+const ModalHeaderTitle = styled.h3`
+  margin: 0 0 0.75rem 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.3;
+`;
+
+const ModalHeaderMeta = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+  opacity: 0.95;
+`;
+
+const ModalCloseButton = styled.button`
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+  }
+
+  span {
+    font-size: 1.5rem;
+  }
+`;
+
+const ModalBody = styled.div`
+  padding: 2rem;
+`;
+
+const DetailSection = styled.div`
+  margin-bottom: 1.5rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const DetailLabel = styled.p`
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  span {
+    font-size: 1rem;
+  }
+`;
+
+const DetailValue = styled.p`
+  font-size: 1rem;
+  color: #0d141b;
+  margin: 0;
+  line-height: 1.6;
+`;
+
+const StatusBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background-color: ${props => {
+    if (props.$status === 'resolved') return 'rgba(16, 185, 129, 0.1)';
+    if (props.$status === 'acknowledged') return 'rgba(59, 130, 246, 0.1)';
+    return 'rgba(245, 158, 11, 0.1)';
+  }};
+  color: ${props => {
+    if (props.$status === 'resolved') return '#10b981';
+    if (props.$status === 'acknowledged') return '#3b82f6';
+    return '#f59e0b';
+  }};
+`;
+
+const BreakdownImage = styled.img`
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  margin-top: 0.5rem;
+`;
+
+const ModalFooter = styled.div`
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const CloseButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #e2e8f0;
+  }
+
+  span {
+    font-size: 1.1rem;
+  }
+`;
+
 const TechnicianDashboard = ({ onLogout, currentUser }) => {
   const [activeSection, setActiveSection] = useState('overview');
   const [isAddAccessoryModalOpen, setIsAddAccessoryModalOpen] = useState(false);
+  const [isBreakdownModalOpen, setIsBreakdownModalOpen] = useState(false);
+  const [isRepairModalOpen, setIsRepairModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [reportType, setReportType] = useState('daily');
   const [vehicles, setVehicles] = useState([]);
   const [accessories, setAccessories] = useState([]);
   const [maintenanceRecords, setMaintenanceRecords] = useState([]);
+  const [repairs, setRepairs] = useState([]);
+  const [breakdowns, setBreakdowns] = useState([]);
+  const [loadingBreakdowns, setLoadingBreakdowns] = useState(false);
+  const [selectedBreakdown, setSelectedBreakdown] = useState(null);
+  const [isBreakdownDetailModalOpen, setIsBreakdownDetailModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: 'bar-chart-2' },
-    { id: 'breakdowns', label: 'Breakdowns', icon: 'wrench' },
+    { id: 'breakdowns', label: 'Breakdowns', icon: 'alert-triangle' },
     { id: 'repairs', label: 'Repairs', icon: 'settings' },
     { id: 'stock', label: 'Stock Management', icon: 'package' },
   ];
@@ -535,7 +783,7 @@ const TechnicianDashboard = ({ onLogout, currentUser }) => {
   // Calculate KPIs from real data
   const currentWeek = new Date();
   currentWeek.setDate(currentWeek.getDate() - 7);
-  const repairsThisWeek = maintenanceRecords.filter(record => new Date(record.service_date) >= currentWeek).length;
+  const repairsThisWeek = repairs.filter(record => new Date(record.completed_at) >= currentWeek).length;
 
   const activeBreakdowns = vehicles.filter(v => v.status === 'maintenance').length;
   const stockAlerts = accessories.filter(a => a.stock_level <= a.min_stock_level).length;
@@ -630,10 +878,11 @@ const TechnicianDashboard = ({ onLogout, currentUser }) => {
   const fetchTechnicianData = async () => {
     try {
       setLoading(true);
-      const [vehiclesRes, accessoriesRes, maintenanceRes] = await Promise.allSettled([
+      const [vehiclesRes, accessoriesRes, maintenanceRes, repairsRes] = await Promise.allSettled([
         vehiclesAPI.getVehicles(),
         accessoriesAPI.getAccessories(),
-        vehiclesAPI.getAllMaintenance()
+        vehiclesAPI.getAllMaintenance(),
+        vehiclesAPI.getRepairs()
       ]);
 
       if (vehiclesRes.status === 'fulfilled') {
@@ -647,12 +896,35 @@ const TechnicianDashboard = ({ onLogout, currentUser }) => {
       if (maintenanceRes.status === 'fulfilled') {
         setMaintenanceRecords(maintenanceRes.value?.results || []);
       }
+
+      if (repairsRes.status === 'fulfilled') {
+        setRepairs(repairsRes.value?.results || []);
+      }
     } catch (error) {
       console.error('Error fetching technician data:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const fetchBreakdowns = async () => {
+    try {
+      setLoadingBreakdowns(true);
+      const data = await breakdownsAPI.getBreakdowns();
+      setBreakdowns(data.results || data);
+    } catch (error) {
+      console.error('Error fetching breakdowns:', error);
+      setBreakdowns([]);
+    } finally {
+      setLoadingBreakdowns(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection === 'breakdowns') {
+      fetchBreakdowns();
+    }
+  }, [activeSection]);
 
   const handleActionClick = (actionId) => {
     switch (actionId) {
@@ -677,9 +949,38 @@ const TechnicianDashboard = ({ onLogout, currentUser }) => {
     setIsProfileModalOpen(true);
   };
 
-  const handleProfileUpdate = (updatedUser) => {
-    // Update current user data if needed
-    console.log('Profile updated:', updatedUser);
+  const handleProfileUpdate = async () => {
+    // Fetch updated user data from API
+    try {
+      const updatedUser = await authAPI.getProfile();
+      // Update localStorage with new user data
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      // Update component state
+      setCurrentUser(updatedUser);
+    } catch (error) {
+      console.error('Error fetching updated user profile:', error);
+      // Fallback to localStorage if API fails
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const parsedUser = JSON.parse(userData);
+        setCurrentUser(parsedUser);
+      }
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const fullSubject = `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report: ${subject}`;
+      await messagesAPI.sendMessage({ recipient: 1, subject: fullSubject, body });
+      alert('Report submitted successfully');
+      setSubject('');
+      setBody('');
+      setReportType('daily');
+      setActiveSection('overview');
+    } catch (err) {
+      alert('Failed to submit report');
+    }
   };
 
   if (!isMechanic()) {
@@ -814,80 +1115,160 @@ const TechnicianDashboard = ({ onLogout, currentUser }) => {
 
           {activeSection === 'breakdowns' && (
             <SectionContent>
-              <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#0d141b', marginBottom: '2rem', textAlign: 'center' }}>
-                Breakdowns to Handle
-              </h2>
-              <PlaceholderGrid>
-                <PlaceholderCard>
-                  <i data-feather="alert-triangle" className="fi-icon" style={{ fontSize: '2rem', color: '#ef4444', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>No breakdowns reported</p>
-                </PlaceholderCard>
-                <PlaceholderCard>
-                  <i data-feather="check-circle" className="fi-icon" style={{ fontSize: '2rem', color: '#10b981', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>All systems operational</p>
-                </PlaceholderCard>
-                <PlaceholderCard>
-                  <i data-feather="clock" className="fi-icon" style={{ fontSize: '2rem', color: '#f59e0b', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Monitoring active</p>
-                </PlaceholderCard>
-                <PlaceholderCard>
-                  <i data-feather="tool" className="fi-icon" style={{ fontSize: '2rem', color: '#8b5cf6', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Maintenance ready</p>
-                </PlaceholderCard>
-              </PlaceholderGrid>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#0d141b', margin: 0, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '2rem', color: '#ef4444' }}>warning</span>
+                  My Reported Breakdowns
+                </h2>
+                <button
+                  onClick={() => setIsBreakdownModalOpen(true)}
+                  style={{
+                    background: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '0.5rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontSize: '0.95rem',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.background = '#059669'}
+                  onMouseLeave={(e) => e.target.style.background = '#10b981'}
+                >
+                  <span className="material-symbols-outlined">add</span>
+                  Report Breakdown
+                </button>
+              </div>
+
+              {loadingBreakdowns ? (
+                <div style={{ textAlign: 'center', padding: '3rem' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', color: '#137fec', animation: 'spin 1s linear infinite' }}>refresh</span>
+                  <p style={{ marginTop: '1rem', color: '#64748b' }}>Loading breakdowns...</p>
+                </div>
+              ) : breakdowns.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
+                  {breakdowns.map((breakdown) => (
+                    <div
+                      key={breakdown.id}
+                      onClick={() => {
+                        setSelectedBreakdown(breakdown);
+                        setIsBreakdownDetailModalOpen(true);
+                      }}
+                      style={{
+                        background: 'white',
+                        borderRadius: '0.75rem',
+                        border: '1px solid #e2e8f0',
+                        padding: '1.5rem',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600', color: '#0d141b' }}>{breakdown.title}</h3>
+                          <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: '#64748b' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '1rem', verticalAlign: 'middle' }}>directions_car</span>
+                            {breakdown.vehicle_info || 'Vehicle'}
+                          </p>
+                        </div>
+                        <span style={{
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          background: breakdown.status === 'resolved' ? 'rgba(16, 185, 129, 0.1)' : 
+                                     breakdown.status === 'acknowledged' ? 'rgba(59, 130, 246, 0.1)' : 
+                                     'rgba(245, 158, 11, 0.1)',
+                          color: breakdown.status === 'resolved' ? '#10b981' : 
+                                 breakdown.status === 'acknowledged' ? '#3b82f6' : 
+                                 '#f59e0b'
+                        }}>
+                          {breakdown.status}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '0.9rem', color: '#475569', margin: '0 0 1rem', lineHeight: '1.5' }}>
+                        {breakdown.description.length > 100 ? breakdown.description.substring(0, 100) + '...' : breakdown.description}
+                      </p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: '#64748b' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>schedule</span>
+                          {new Date(breakdown.reported_at).toLocaleDateString()}
+                        </span>
+                        {breakdown.image && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#3b82f6', cursor: 'pointer' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>image</span>
+                            Has image
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <PlaceholderGrid>
+                  <PlaceholderCard>
+                    <span className="material-symbols-outlined" style={{ fontSize: '3rem', color: '#cbd5e1', marginBottom: '1rem' }}>check_circle</span>
+                    <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', fontWeight: '600', color: '#0d141b' }}>No Breakdowns Yet</h3>
+                    <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b' }}>You haven't reported any breakdowns yet. Click the button above to report one.</p>
+                  </PlaceholderCard>
+                </PlaceholderGrid>
+              )}
             </SectionContent>
           )}
 
           {activeSection === 'repairs' && (
             <SectionContent>
-              <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#0d141b', marginBottom: '2rem', textAlign: 'center' }}>
-                Record Repairs
-              </h2>
-              <PlaceholderGrid>
-                <PlaceholderCard>
-                  <i data-feather="settings" className="fi-icon" style={{ fontSize: '2rem', color: '#10b981', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>No repairs in progress</p>
-                </PlaceholderCard>
-                <PlaceholderCard>
-                  <i data-feather="check-circle" className="fi-icon" style={{ fontSize: '2rem', color: '#10b981', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>All repairs completed</p>
-                </PlaceholderCard>
-                <PlaceholderCard>
-                  <i data-feather="file-text" className="fi-icon" style={{ fontSize: '2rem', color: '#3b82f6', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Records up to date</p>
-                </PlaceholderCard>
-                <PlaceholderCard>
-                  <i data-feather="trending-up" className="fi-icon" style={{ fontSize: '2rem', color: '#10b981', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Performance optimal</p>
-                </PlaceholderCard>
-              </PlaceholderGrid>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#0d141b', margin: 0, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '2rem', color: '#3b82f6' }}>settings</span>
+                  My Repair Records
+                </h2>
+                <button
+                  onClick={() => setIsRepairModalOpen(true)}
+                  style={{
+                    background: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '0.5rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontSize: '0.95rem',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.background = '#2563eb'}
+                  onMouseLeave={(e) => e.target.style.background = '#3b82f6'}
+                >
+                  <span className="material-symbols-outlined">add</span>
+                  Record Repair
+                </button>
+              </div>
+              
+              <RepairRecordsReport />
             </SectionContent>
           )}
 
           {activeSection === 'stock' && (
-            <SectionContent>
-              <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#0d141b', marginBottom: '2rem', textAlign: 'center' }}>
-                Stock Management
-              </h2>
-              <PlaceholderGrid>
-                <PlaceholderCard>
-                  <i data-feather="package" className="fi-icon" style={{ fontSize: '2rem', color: '#f59e0b', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Inventory levels normal</p>
-                </PlaceholderCard>
-                <PlaceholderCard>
-                  <i data-feather="shopping-cart" className="fi-icon" style={{ fontSize: '2rem', color: '#10b981', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>No restocking needed</p>
-                </PlaceholderCard>
-                <PlaceholderCard>
-                  <i data-feather="bar-chart-3" className="fi-icon" style={{ fontSize: '2rem', color: '#3b82f6', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Analytics available</p>
-                </PlaceholderCard>
-                <PlaceholderCard>
-                  <i data-feather="bell" className="fi-icon" style={{ fontSize: '2rem', color: '#8b5cf6', marginBottom: '0.5rem' }}></i>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Alerts configured</p>
-                </PlaceholderCard>
-              </PlaceholderGrid>
-            </SectionContent>
+            <AccessoriesPage
+              onBack={() => setActiveSection('overview')}
+              showHeader={false}
+            />
           )}
         </DashboardContent>
       </MainContent>
@@ -913,12 +1294,111 @@ const TechnicianDashboard = ({ onLogout, currentUser }) => {
         }}
       />
 
+      <BreakdownReportModal
+        isOpen={isBreakdownModalOpen}
+        onClose={() => setIsBreakdownModalOpen(false)}
+        onSuccess={() => {
+          // Refresh breakdowns list
+          fetchBreakdowns();
+          setIsBreakdownModalOpen(false);
+        }}
+      />
+
+      <RepairRecordModal
+        isOpen={isRepairModalOpen}
+        onClose={() => setIsRepairModalOpen(false)}
+        onSuccess={() => {
+          // Refresh repair records if needed
+          fetchTechnicianData();
+        }}
+      />
+
       <UserProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         currentUser={currentUser}
         onProfileUpdate={handleProfileUpdate}
       />
+
+      {isBreakdownDetailModalOpen && selectedBreakdown && (
+        <ModalOverlay onClick={() => setIsBreakdownDetailModalOpen(false)}>
+          <ModalContainer onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalHeaderContent>
+                <ModalHeaderTitle>{selectedBreakdown.title}</ModalHeaderTitle>
+                <ModalHeaderMeta>
+                  <span className="material-symbols-outlined">directions_car</span>
+                  {selectedBreakdown.vehicle_info || 'Vehicle'}
+                  <span style={{ margin: '0 0.5rem' }}>•</span>
+                  <span className="material-symbols-outlined">schedule</span>
+                  {new Date(selectedBreakdown.reported_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </ModalHeaderMeta>
+              </ModalHeaderContent>
+              <ModalCloseButton onClick={() => setIsBreakdownDetailModalOpen(false)}>
+                <span className="material-symbols-outlined">close</span>
+              </ModalCloseButton>
+            </ModalHeader>
+            <ModalBody>
+              <DetailSection>
+                <StatusBadge $status={selectedBreakdown.status}>
+                  <span className="material-symbols-outlined">
+                    {selectedBreakdown.status === 'resolved' ? 'check_circle' :
+                     selectedBreakdown.status === 'acknowledged' ? 'visibility' :
+                     'pending'}
+                  </span>
+                  {selectedBreakdown.status.charAt(0).toUpperCase() + selectedBreakdown.status.slice(1)}
+                </StatusBadge>
+              </DetailSection>
+
+              <DetailSection>
+                <DetailLabel>
+                  <span className="material-symbols-outlined">description</span>
+                  Description
+                </DetailLabel>
+                <DetailValue>{selectedBreakdown.description}</DetailValue>
+              </DetailSection>
+
+              {selectedBreakdown.image && (
+                <DetailSection>
+                  <DetailLabel>
+                    <span className="material-symbols-outlined">image</span>
+                    Attached Image
+                  </DetailLabel>
+                  <BreakdownImage 
+                    src={selectedBreakdown.image.startsWith('http') ? selectedBreakdown.image : `http://127.0.0.1:8000${selectedBreakdown.image}`}
+                    alt={selectedBreakdown.title}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                </DetailSection>
+              )}
+
+              {selectedBreakdown.mechanic_name && (
+                <DetailSection>
+                  <DetailLabel>
+                    <span className="material-symbols-outlined">person</span>
+                    Reported By
+                  </DetailLabel>
+                  <DetailValue>{selectedBreakdown.mechanic_name}</DetailValue>
+                </DetailSection>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <CloseButton onClick={() => setIsBreakdownDetailModalOpen(false)}>
+                <span className="material-symbols-outlined">close</span>
+                Close
+              </CloseButton>
+            </ModalFooter>
+          </ModalContainer>
+        </ModalOverlay>
+      )}
     </Container>
   );
 };

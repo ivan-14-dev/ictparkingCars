@@ -36,7 +36,28 @@ class MessageViewSet(ModelViewSet):
         return serializers.MessageSerializer
 
     def perform_create(self, serializer):
-        serializer.save(sender=self.request.user)
+        # Set recipient to admin user for reports/issues
+        from api.models import User
+        admin_user = User.objects.filter(role='admin').first()
+        if admin_user:
+            message = serializer.save(sender=self.request.user, recipient=admin_user)
+            # Log activity for report received
+            from api.models import Activity
+            Activity.log_activity(
+                activity_type='report_received',
+                user=self.request.user,
+                description=f"Report submitted: {message.subject}",
+                related_object_type='message',
+                related_object_id=message.id,
+                metadata={
+                    'recipient': admin_user.username,
+                    'subject': message.subject,
+                    'body_preview': message.body[:100] if message.body else ''
+                }
+            )
+        else:
+            # Fallback: save without recipient (though this will fail due to NOT NULL)
+            serializer.save(sender=self.request.user)
 
     @action(detail=False, methods=['get'])
     def inbox(self, request):
@@ -94,7 +115,22 @@ class MessageListCreateView(generics.ListCreateAPIView):
         return serializers.MessageListSerializer
 
     def perform_create(self, serializer):
-        serializer.save(sender=self.request.user)
+        recipient_data = self.request.data.get('recipient')
+        if recipient_data == 'admin':
+            from api.models import User
+            recipient = User.objects.filter(role='admin').first()
+            if not recipient:
+                raise serializers.ValidationError('No admin user found')
+            serializer.save(sender=self.request.user, recipient=recipient)
+        else:
+            # Handle numeric ID or other recipient logic
+            try:
+                recipient_id = int(recipient_data)
+                from api.models import User
+                recipient = User.objects.get(id=recipient_id)
+                serializer.save(sender=self.request.user, recipient=recipient)
+            except (ValueError, User.DoesNotExist):
+                raise serializers.ValidationError('Invalid recipient')
 
 
 class MessageDetailView(generics.RetrieveUpdateDestroyAPIView):

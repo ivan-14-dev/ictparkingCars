@@ -22,7 +22,6 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(max_length=100)),
-                ('sku', models.CharField(max_length=50, unique=True)),
                 ('category', models.CharField(choices=[('tires', 'Tires'), ('battery', 'Battery'), ('brakes', 'Brakes'), ('filters', 'Filters'), ('lights', 'Lights'), ('tools', 'Tools'), ('other', 'Other')], default='other', max_length=20)),
                 ('description', models.TextField(blank=True)),
                 ('price', models.DecimalField(decimal_places=2, max_digits=8)),
