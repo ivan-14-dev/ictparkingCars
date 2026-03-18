@@ -398,6 +398,11 @@ export const accessoriesAPI = {
       if (accessoryData[key] !== null && accessoryData[key] !== undefined) {
         if (key === 'image' && accessoryData[key] instanceof File) {
           formData.append(key, accessoryData[key]);
+        } else if (Array.isArray(accessoryData[key])) {
+          // Handle arrays (like vehicles)
+          accessoryData[key].forEach(item => {
+            formData.append(key, item);
+          });
         } else {
           formData.append(key, accessoryData[key]);
         }
@@ -418,6 +423,11 @@ export const accessoriesAPI = {
       if (accessoryData[key] !== null && accessoryData[key] !== undefined) {
         if (key === 'image' && accessoryData[key] instanceof File) {
           formData.append(key, accessoryData[key]);
+        } else if (Array.isArray(accessoryData[key])) {
+          // Handle arrays (like vehicles)
+          accessoryData[key].forEach(item => {
+            formData.append(key, item);
+          });
         } else {
           formData.append(key, accessoryData[key]);
         }
@@ -573,8 +583,16 @@ export const breakdownsAPI = {
     const formData = new FormData();
     Object.keys(breakdownData).forEach(key => {
       if (breakdownData[key] !== null && breakdownData[key] !== undefined) {
-        if (key === 'image' && breakdownData[key] instanceof File) {
-          formData.append('image', breakdownData[key]);
+        // Handle multiple images
+        if (key === 'images' && Array.isArray(breakdownData[key])) {
+          breakdownData[key].forEach(img => {
+            if (img instanceof File) {
+              formData.append('images', img);
+            }
+          });
+        } else if (key === 'image' && breakdownData[key] instanceof File) {
+          // Keep backwards compatibility
+          formData.append('images', breakdownData[key]);
         } else {
           formData.append(key, breakdownData[key]);
         }
@@ -597,6 +615,90 @@ export const breakdownsAPI = {
   deleteBreakdown: async (id) => {
     return await apiRequest(`/breakdowns/${id}/`, {
       method: 'DELETE',
+    });
+  },
+};
+
+// Reports/Expenses API
+export const reportsAPI = {
+  getExpensesReport: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/reports/expenses/?${queryString}` : '/reports/expenses/';
+    return await apiRequest(endpoint);
+  },
+};
+
+// Fuel Usage API
+export const fuelAPI = {
+  getFuelUsage: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/fuel-usage/?${queryString}` : '/fuel-usage/';
+    return await apiRequest(endpoint);
+  },
+  getFuelReport: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/fuel-usage/report/?${queryString}` : '/fuel-usage/report/';
+    return await apiRequest(endpoint);
+  },
+  addFuelUsage: async (data) => {
+    return await apiRequest('/fuel-usage/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  exportFuelUsage: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/fuel/export/?${queryString}` : '/fuel/export/';
+    
+    const token = localStorage.getItem('access_token');
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to export fuel data');
+    }
+    
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fuel_usage_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+  getDrivers: async () => {
+    return await apiRequest('/drivers/');
+  },
+};
+
+// Repair Records API
+export const repairAPI = {
+  getRepairRecords: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/repair-records/?${queryString}` : '/repair-records/';
+    return await apiRequest(endpoint);
+  },
+  verifyRepairRecord: async (id, data) => {
+    return await apiRequest(`/repair-records/${id}/verify/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// Alerts API
+export const alertsAPI = {
+  getBreakdownAlerts: async () => {
+    return await apiRequest('/alerts/breakdowns/check/');
+  },
+  sendBreakdownAlertEmail: async () => {
+    return await apiRequest('/alerts/breakdowns/', {
+      method: 'GET',
     });
   },
 };

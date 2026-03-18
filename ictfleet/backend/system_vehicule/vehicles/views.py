@@ -30,8 +30,6 @@ class VehicleViewSet(ModelViewSet):
     def my_vehicles(self, request):
         """Get all vehicles assigned to the current user (driver)"""
         vehicles = models.Vehicle.objects.filter(assigned_driver=request.user)
-        if not vehicles.exists():
-            return Response({'detail': 'No vehicles assigned'}, status=status.HTTP_404_NOT_FOUND)
         serializer = serializers.VehicleSerializer(vehicles, many=True)
         return Response(serializer.data)
 

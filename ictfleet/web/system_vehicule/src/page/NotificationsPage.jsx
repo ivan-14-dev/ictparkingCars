@@ -40,7 +40,15 @@ const NotificationsPage = ({ onBack, showHeader = true }) => {
       }
 
       if (notificationsRes.status === 'fulfilled') {
-        setNotifications(notificationsRes.value);
+        // Handle both paginated and non-paginated responses
+        const data = notificationsRes.value;
+        if (Array.isArray(data)) {
+          setNotifications(data);
+        } else if (data && Array.isArray(data.results)) {
+          setNotifications(data.results);
+        } else {
+          setNotifications([]);
+        }
       }
 
       if (usersRes.status === 'fulfilled') {
@@ -70,7 +78,7 @@ const NotificationsPage = ({ onBack, showHeader = true }) => {
           await messagesAPI.sendMessage({
             recipient: recipientId,
             subject: messageSubject,
-            content: messageContent
+            body: messageContent
           });
         }
       }

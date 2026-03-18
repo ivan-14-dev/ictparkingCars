@@ -35,29 +35,7 @@ class MessageViewSet(ModelViewSet):
             return serializers.MessageListSerializer
         return serializers.MessageSerializer
 
-    def perform_create(self, serializer):
-        # Set recipient to admin user for reports/issues
-        from api.models import User
-        admin_user = User.objects.filter(role='admin').first()
-        if admin_user:
-            message = serializer.save(sender=self.request.user, recipient=admin_user)
-            # Log activity for report received
-            from api.models import Activity
-            Activity.log_activity(
-                activity_type='report_received',
-                user=self.request.user,
-                description=f"Report submitted: {message.subject}",
-                related_object_type='message',
-                related_object_id=message.id,
-                metadata={
-                    'recipient': admin_user.username,
-                    'subject': message.subject,
-                    'body_preview': message.body[:100] if message.body else ''
-                }
-            )
-        else:
-            # Fallback: save without recipient (though this will fail due to NOT NULL)
-            serializer.save(sender=self.request.user)
+    # perform_create removed - handled by serializer's create method
 
     @action(detail=False, methods=['get'])
     def inbox(self, request):

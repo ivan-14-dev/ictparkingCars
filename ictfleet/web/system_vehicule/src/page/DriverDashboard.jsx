@@ -3,7 +3,8 @@ import styled from 'styled-components';
 import UserProfileDropdown from '../component/UserProfileDropdown';
 import UserProfileModal from '../component/UserProfileModal';
 import VehicleDetailsModal from '../component/VehicleDetailsModal';
-import { vehiclesAPI, messagesAPI, isDriver, authAPI } from '../service/api';
+import PrevisionChatWidget from '../component/PrevisionChatWidget';
+import { vehiclesAPI, messagesAPI, isDriver, authAPI, repairAPI, fuelAPI } from '../service/api';
 
 // Main Container
 const Container = styled.div`
@@ -1153,8 +1154,110 @@ const CloseButton = styled.button`
   }
 `;
 
+const FormGroup = styled.div`
+  margin-bottom: 1.5rem;
+`;
 
-const DriverDashboard = ({ onLogout, currentUser }) => {
+const FormLabel = styled.label`
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #334155;
+  font-size: 0.95rem;
+`;
+
+const FormInput = styled.input`
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  color: #1e293b;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &::placeholder {
+    color: #94a3b8;
+  }
+`;
+
+const FormSelect = styled.select`
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  color: #1e293b;
+  background: white;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+`;
+
+const SubmitButton = styled.button`
+  width: 100%;
+  padding: 1rem;
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+
+  &:hover:not(:disabled) {
+    background: #d97706;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const ErrorMessage = styled.div`
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  color: #dc2626;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+`;
+
+const SuccessMessage = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  gap: 1rem;
+
+  p {
+    color: #10b981;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+`;
+
+
+const DriverDashboard = ({ onLogout, currentUser, onOpenPrevision, onOpenFuelUsage }) => {
   const [activeSection, setActiveSection] = useState('overview');
   const [assignedVehicles, setAssignedVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -1168,8 +1271,24 @@ const DriverDashboard = ({ onLogout, currentUser }) => {
   const [issueBody, setIssueBody] = useState('');
   const [driverReports, setDriverReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
+  const [repairRecords, setRepairRecords] = useState([]);
+  const [loadingRepairs, setLoadingRepairs] = useState(false);
+  const [verificationComment, setVerificationComment] = useState('');
   const [selectedReport, setSelectedReport] = useState(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [showFuelModal, setShowFuelModal] = useState(false);
+  const [fuelFormData, setFuelFormData] = useState({
+    vehicle: '',
+    date: new Date().toISOString().split('T')[0],
+    quantity: '',
+    cost: '',
+    location: '',
+    odometer: ''
+  });
+  const [fuelLoading, setFuelLoading] = useState(false);
+  const [fuelError, setFuelError] = useState('');
+  const [fuelSuccess, setFuelSuccess] = useState('');
+  const [driverFuelRecords, setDriverFuelRecords] = useState([]);
 
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: 'bar-chart-2' },
@@ -1177,6 +1296,8 @@ const DriverDashboard = ({ onLogout, currentUser }) => {
     { id: 'report_history', label: 'Report History', icon: 'folder' },
     { id: 'reports', label: 'Submit Report', icon: 'file-text' },
     { id: 'issues', label: 'Report Issue', icon: 'alert-triangle' },
+    { id: 'verify_repairs', label: 'Verify Repairs', icon: 'check-circle', isVerify: true },
+    { id: 'fuel', label: 'Fuel', icon: 'droplet', isFuel: true },
   ];
 
   const driverKpis = [
@@ -1219,6 +1340,14 @@ const DriverDashboard = ({ onLogout, currentUser }) => {
   ];
 
   const driverActions = [
+    {
+      id: 'add_fuel',
+      title: 'Ajouter Carburant',
+      description: 'Enregistrer un plein de carburant',
+      icon: 'droplet',
+      bg: '#f59e0b',
+      color: '#f59e0b'
+    },
     {
       id: 'report_issue',
       title: 'Report Vehicle Issue',
@@ -1266,6 +1395,16 @@ const DriverDashboard = ({ onLogout, currentUser }) => {
       fetchDriverReports();
     }
 
+    // Fetch repair records when verify_repairs section is active
+    if (activeSection === 'verify_repairs') {
+      fetchRepairRecords();
+    }
+
+    // Fetch fuel records when fuel section is active
+    if (activeSection === 'fuel') {
+      fetchDriverFuelRecords();
+    }
+
     // Ensure Feather icons are rendered
     if (window.feather) {
       window.feather.replace();
@@ -1309,8 +1448,56 @@ const DriverDashboard = ({ onLogout, currentUser }) => {
     }
   };
 
+  const fetchDriverFuelRecords = async () => {
+    try {
+      setFuelLoading(true);
+      const records = await fuelAPI.getFuelUsage();
+      setDriverFuelRecords(records || []);
+    } catch (error) {
+      console.error('Error fetching fuel records:', error);
+      setDriverFuelRecords([]);
+    } finally {
+      setFuelLoading(false);
+    }
+  };
+
+  const fetchRepairRecords = async () => {
+    try {
+      setLoadingRepairs(true);
+      // Get repairs for vehicles assigned to this driver
+      const response = await repairAPI.getRepairRecords({ status: 'completed' });
+      setRepairRecords(response.results || []);
+    } catch (error) {
+      console.error('Error fetching repair records:', error);
+      setRepairRecords([]);
+    } finally {
+      setLoadingRepairs(false);
+    }
+  };
+
+  const handleVerifyRepair = async (repairId, isVerified, comments) => {
+    try {
+      await repairAPI.verifyRepairRecord(repairId, {
+        driver_verified: isVerified,
+        driver_comments: comments || '',
+      });
+      // Refresh the repair records
+      fetchRepairRecords();
+    } catch (error) {
+      console.error('Error verifying repair:', error);
+      alert('Failed to verify repair. Please try again.');
+    }
+  };
+
   const handleActionClick = (actionId) => {
     switch (actionId) {
+      case 'add_fuel':
+        // Pre-select vehicle if assigned
+        if (assignedVehicles.length > 0) {
+          setFuelFormData(prev => ({ ...prev, vehicle: assignedVehicles[0].id }));
+        }
+        setShowFuelModal(true);
+        break;
       case 'report_issue':
         // Open issue reporting modal
         break;
@@ -1326,6 +1513,53 @@ const DriverDashboard = ({ onLogout, currentUser }) => {
       default:
         break;
     }
+  };
+
+  const handleSubmitFuel = async (e) => {
+    e.preventDefault();
+    setFuelError('');
+    setFuelSuccess('');
+    setFuelLoading(true);
+
+    try {
+      // Convert frontend field names to backend field names
+      const fuelData = {
+        vehicle: fuelFormData.vehicle,
+        date: fuelFormData.date,
+        liters: fuelFormData.quantity,
+        price_per_liter: fuelFormData.cost && fuelFormData.quantity 
+          ? (parseFloat(fuelFormData.cost) / parseFloat(fuelFormData.quantity)).toFixed(2)
+          : fuelFormData.cost,
+        location: fuelFormData.location,
+        odometer: fuelFormData.odometer || null,
+        notes: fuelFormData.notes || ''
+      };
+      await fuelAPI.addFuelUsage(fuelData);
+      setFuelSuccess('Carburant ajouté avec succès!');
+      setFuelFormData({
+        vehicle: assignedVehicles.length > 0 ? assignedVehicles[0].id : '',
+        date: new Date().toISOString().split('T')[0],
+        quantity: '',
+        cost: '',
+        location: '',
+        odometer: ''
+      });
+      // Refresh fuel records
+      fetchDriverFuelRecords();
+      setTimeout(() => {
+        setShowFuelModal(false);
+        setFuelSuccess('');
+      }, 2000);
+    } catch (err) {
+      setFuelError(err.response?.data?.detail || 'Erreur lors de l\'ajout du carburant');
+    } finally {
+      setFuelLoading(false);
+    }
+  };
+
+  const handleFuelFormChange = (e) => {
+    const { name, value } = e.target;
+    setFuelFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleViewProfile = () => {
@@ -1415,7 +1649,17 @@ const DriverDashboard = ({ onLogout, currentUser }) => {
                 className={activeSection === item.id ? 'active' : ''}
                 onClick={(e) => {
                   e.preventDefault();
-                  setActiveSection(item.id);
+                  if (item.isPrevision && onOpenPrevision) {
+                    onOpenPrevision();
+                  } else if (item.isFuel) {
+                    // Open the fuel modal in DriverDashboard
+                    if (assignedVehicles.length > 0) {
+                      setFuelFormData(prev => ({ ...prev, vehicle: assignedVehicles[0].id }));
+                    }
+                    setShowFuelModal(true);
+                  } else {
+                    setActiveSection(item.id);
+                  }
                 }}
               >
                 <i data-feather={item.icon} className="fi-icon"></i>
@@ -1718,6 +1962,233 @@ const DriverDashboard = ({ onLogout, currentUser }) => {
                   </EmptyReports>
                 )}
               </HistoryContainer>
+            </SectionContent>
+          )}
+
+          {activeSection === 'verify_repairs' && (
+            <SectionContent>
+              <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+                <div style={{ 
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+                  borderRadius: '1rem 1rem 0 0', 
+                  padding: '2rem',
+                  color: 'white'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '2rem' }}>verified</span>
+                    <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '700' }}>Verify Repairs</h2>
+                  </div>
+                  <p style={{ margin: 0, opacity: 0.9, fontSize: '0.9rem' }}>Review and verify repairs completed on your vehicles</p>
+                </div>
+
+                {loadingRepairs ? (
+                  <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '3rem', animation: 'spin 1s linear infinite' }}>refresh</span>
+                    <p>Loading repairs...</p>
+                  </div>
+                ) : repairRecords.length > 0 ? (
+                  <div style={{ padding: '1.5rem' }}>
+                    {repairRecords.map((repair) => (
+                      <div key={repair.id} style={{ 
+                        background: 'white', 
+                        borderRadius: '0.75rem', 
+                        padding: '1.5rem', 
+                        marginBottom: '1rem',
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                          <div>
+                            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.125rem', fontWeight: '600', color: '#1e293b' }}>
+                              {repair.title}
+                            </h3>
+                            <p style={{ margin: 0, color: '#64748b', fontSize: '0.875rem' }}>
+                              {repair.vehicle_info} • Par {repair.mechanic_name}
+                            </p>
+                          </div>
+                          <span style={{ 
+                            padding: '0.25rem 0.75rem', 
+                            borderRadius: '9999px', 
+                            fontSize: '0.75rem', 
+                            fontWeight: '600',
+                            background: repair.driver_verified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                            color: repair.driver_verified ? '#059669' : '#d97706'
+                          }}>
+                            {repair.driver_verified ? 'Verified' : 'Pending Verification'}
+                          </span>
+                        </div>
+                        
+                        <div style={{ marginBottom: '1rem' }}>
+                          <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8125rem', fontWeight: '500', color: '#475569' }}>Description:</p>
+                          <p style={{ margin: 0, color: '#64748b', fontSize: '0.875rem' }}>{repair.description}</p>
+                        </div>
+
+                        {repair.driver_verified ? (
+                          <div style={{ 
+                            padding: '1rem', 
+                            background: '#f0fdf4', 
+                            borderRadius: '0.5rem',
+                            border: '1px solid #bbf7d0'
+                          }}>
+                            <p style={{ margin: 0, color: '#166534', fontSize: '0.875rem' }}>
+                              <strong>Your verification:</strong> {repair.driver_comments || 'No comments'}
+                            </p>
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                            <textarea
+                              placeholder="Add comments about the repair (optional)"
+                              value={verificationComment}
+                              onChange={(e) => setVerificationComment(e.target.value)}
+                              style={{ 
+                                width: '100%', 
+                                padding: '0.75rem', 
+                                border: '1px solid #d1d5db', 
+                                borderRadius: '0.5rem',
+                                fontSize: '0.875rem',
+                                minHeight: '80px',
+                                marginBottom: '1rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                              <button
+                                onClick={() => handleVerifyRepair(repair.id, true, verificationComment)}
+                                style={{ 
+                                  padding: '0.5rem 1rem', 
+                                  background: '#10b981', 
+                                  color: 'white', 
+                                  border: 'none', 
+                                  borderRadius: '0.5rem',
+                                  fontSize: '0.875rem',
+                                  fontWeight: '500',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                ✓ Verify Repair
+                              </button>
+                              <button
+                                onClick={() => handleVerifyRepair(repair.id, false, verificationComment)}
+                                style={{ 
+                                  padding: '0.5rem 1rem', 
+                                  background: '#ef4444', 
+                                  color: 'white', 
+                                  border: 'none', 
+                                  borderRadius: '0.5rem',
+                                  fontSize: '0.875rem',
+                                  fontWeight: '500',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                ✗ Report Issue
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '4rem', color: '#cbd5e1' }}>build</span>
+                    <h3 style={{ margin: '1rem 0 0.5rem 0', color: '#475569' }}>No Repairs to Verify</h3>
+                    <p style={{ color: '#64748b' }}>There are no completed repairs for your vehicles at this time.</p>
+                  </div>
+                )}
+              </div>
+            </SectionContent>
+          )}
+
+          {activeSection === 'fuel' && (
+            <SectionContent>
+              <DashboardHeader>
+                <h2>Gestion Carburant</h2>
+                <p>Enregistrez et consultez vos consommations de carburant</p>
+              </DashboardHeader>
+
+              <div style={{ maxWidth: '100%' }}>
+                {/* Add Fuel Button */}
+                <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                  <button 
+                    onClick={() => {
+                      if (assignedVehicles.length > 0) {
+                        setFuelFormData(prev => ({ ...prev, vehicle: assignedVehicles[0].id }));
+                      }
+                      setShowFuelModal(true);
+                    }}
+                    style={{
+                      background: '#f59e0b',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      padding: '0.625rem 1.25rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>add</span>
+                    Ajouter Carburant
+                  </button>
+                </div>
+
+                {/* Fuel Table */}
+                <div style={{ 
+                  background: 'white', 
+                  borderRadius: '0.75rem', 
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)', 
+                  padding: '1.5rem',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <h3 style={{ margin: '0 0 1rem 0', color: '#1e293b', fontSize: '1rem', fontWeight: '600' }}>Historique des carburants</h3>
+                  
+                  {driverFuelRecords.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '3rem', color: '#cbd5e1' }}>local_gas_station</span>
+                      <p style={{ marginTop: '0.75rem', fontSize: '0.9rem' }}>Aucun enregistrement</p>
+                      <p style={{ fontSize: '0.8rem' }}>Cliquez sur "Ajouter Carburant" pour enregistrer</p>
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                            <th style={{ textAlign: 'left', padding: '0.75rem', color: '#64748b', fontWeight: '600', fontSize: '0.8rem' }}>Date</th>
+                            <th style={{ textAlign: 'left', padding: '0.75rem', color: '#64748b', fontWeight: '600', fontSize: '0.8rem' }}>Véhicule</th>
+                            <th style={{ textAlign: 'right', padding: '0.75rem', color: '#64748b', fontWeight: '600', fontSize: '0.8rem' }}>Qté (L)</th>
+                            <th style={{ textAlign: 'right', padding: '0.75rem', color: '#64748b', fontWeight: '600', fontSize: '0.8rem' }}>Coût</th>
+                            <th style={{ textAlign: 'left', padding: '0.75rem', color: '#64748b', fontWeight: '600', fontSize: '0.8rem' }}>Station</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {driverFuelRecords.map((record) => (
+                            <tr key={record.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '0.75rem', color: '#1e293b' }}>
+                                {new Date(record.date).toLocaleDateString('fr-FR')}
+                              </td>
+                              <td style={{ padding: '0.75rem', color: '#1e293b' }}>
+                                {record.vehicle_name || record.vehicle}
+                              </td>
+                              <td style={{ padding: '0.75rem', textAlign: 'right', color: '#1e293b' }}>
+                                {record.quantity?.toLocaleString() || '-'} L
+                              </td>
+                              <td style={{ padding: '0.75rem', textAlign: 'right', color: '#059669', fontWeight: '600' }}>
+                                {record.cost?.toLocaleString() || '-'} CFA
+                              </td>
+                              <td style={{ padding: '0.75rem', color: '#64748b', fontSize: '0.8rem' }}>
+                                {record.location || '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
             </SectionContent>
           )}
 
@@ -2104,6 +2575,118 @@ const DriverDashboard = ({ onLogout, currentUser }) => {
         vehicle={selectedVehicle}
       />
 
+      {/* Fuel Quick Add Modal */}
+      {showFuelModal && (
+        <ModalOverlay onClick={() => setShowFuelModal(false)}>
+          <ModalContainer onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <ModalHeader>
+              <ModalHeaderContent>
+                <ModalHeaderTitle>Ajouter Carburant</ModalHeaderTitle>
+                <ModalHeaderMeta>
+                  <span className="material-symbols-outlined">local_gas_station</span>
+                  Enregistrement rapide
+                </ModalHeaderMeta>
+              </ModalHeaderContent>
+              <ModalCloseButton onClick={() => setShowFuelModal(false)}>
+                <span className="material-symbols-outlined">close</span>
+              </ModalCloseButton>
+            </ModalHeader>
+            <ModalBody>
+              {fuelSuccess ? (
+                <SuccessMessage>
+                  <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#10b981' }}>check_circle</span>
+                  <p>{fuelSuccess}</p>
+                </SuccessMessage>
+              ) : (
+                <form onSubmit={handleSubmitFuel}>
+                  <FormGroup>
+                    <FormLabel>Véhicule</FormLabel>
+                    <FormSelect
+                      name="vehicle"
+                      value={fuelFormData.vehicle}
+                      onChange={handleFuelFormChange}
+                      required
+                    >
+                      <option value="">Sélectionner un véhicule</option>
+                      {assignedVehicles.map(vehicle => (
+                        <option key={vehicle.id} value={vehicle.id}>
+                          {vehicle.brand} {vehicle.model} - {vehicle.license_plate}
+                        </option>
+                      ))}
+                    </FormSelect>
+                  </FormGroup>
+
+                  <FormGroup>
+                    <FormLabel>Date</FormLabel>
+                    <FormInput
+                      type="date"
+                      name="date"
+                      value={fuelFormData.date}
+                      onChange={handleFuelFormChange}
+                      required
+                    />
+                  </FormGroup>
+
+                  <FormGroup>
+                    <FormLabel>Quantité (L)</FormLabel>
+                    <FormInput
+                      type="number"
+                      name="quantity"
+                      value={fuelFormData.quantity}
+                      onChange={handleFuelFormChange}
+                      placeholder="Quantité en litres"
+                      step="0.01"
+                      required
+                    />
+                  </FormGroup>
+
+                  <FormGroup>
+                    <FormLabel>Coût (FCFA)</FormLabel>
+                    <FormInput
+                      type="number"
+                      name="cost"
+                      value={fuelFormData.cost}
+                      onChange={handleFuelFormChange}
+                      placeholder="Coût total"
+                      step="1"
+                      required
+                    />
+                  </FormGroup>
+
+                  <FormGroup>
+                    <FormLabel>Station</FormLabel>
+                    <FormInput
+                      type="text"
+                      name="location"
+                      value={fuelFormData.location}
+                      onChange={handleFuelFormChange}
+                      placeholder="Nom de la station"
+                    />
+                  </FormGroup>
+
+                  <FormGroup>
+                    <FormLabel>Compteur (km)</FormLabel>
+                    <FormInput
+                      type="number"
+                      name="odometer"
+                      value={fuelFormData.odometer}
+                      onChange={handleFuelFormChange}
+                      placeholder="Kilométrage actuel"
+                    />
+                  </FormGroup>
+
+                  {fuelError && <ErrorMessage>{fuelError}</ErrorMessage>}
+
+                  <SubmitButton type="submit" disabled={fuelLoading}>
+                    {fuelLoading ? 'Enregistrement...' : 'Ajouter Carburant'}
+                  </SubmitButton>
+                </form>
+              )}
+            </ModalBody>
+          </ModalContainer>
+        </ModalOverlay>
+      )}
+
       {isReportModalOpen && selectedReport && (
         <ModalOverlay onClick={() => setIsReportModalOpen(false)}>
           <ModalContainer onClick={(e) => e.stopPropagation()}>
@@ -2147,6 +2730,9 @@ const DriverDashboard = ({ onLogout, currentUser }) => {
           </ModalContainer>
         </ModalOverlay>
       )}
+
+      {/* Prevision AI Chat Widget */}
+      <PrevisionChatWidget vehicles={assignedVehicles} />
     </Container>
   );
 };

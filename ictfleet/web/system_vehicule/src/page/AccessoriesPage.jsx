@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { accessoriesAPI } from '../service/api';
+import { accessoriesAPI, vehiclesAPI } from '../service/api';
 import AddAccessoryModal from '../component/AddAccessoryModal';
 
 const AccessoriesPage = ({ onBack, showHeader = true }) => {
@@ -16,11 +16,22 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
   const [stockChange, setStockChange] = useState(0);
   const [stockReason, setStockReason] = useState('');
   const [isAddAccessoryModalOpen, setIsAddAccessoryModalOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', description: '', price: '' });
+  const [editForm, setEditForm] = useState({ name: '', description: '', price: '', vehicles: [] });
+  const [vehicles, setVehicles] = useState([]);
 
   useEffect(() => {
     fetchAccessoriesData();
+    fetchVehicles();
   }, []);
+
+  const fetchVehicles = async () => {
+    try {
+      const response = await vehiclesAPI.getVehicles();
+      setVehicles(response.results || response);
+    } catch (error) {
+      console.error('Error fetching vehicles:', error);
+    }
+  };
 
   const fetchAccessoriesData = async () => {
     try {
@@ -71,10 +82,13 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
 
   const handleEditAccessory = (accessory) => {
     setSelectedAccessory(accessory);
+    // Get vehicle IDs from the accessory
+    const vehicleIds = accessory.vehicles ? accessory.vehicles.map(v => v.id) : [];
     setEditForm({
       name: accessory.name,
       description: accessory.description || '',
-      price: accessory.price
+      price: accessory.price,
+      vehicles: vehicleIds
     });
     setIsEditMode(false);
     setShowDetailsModal(true);
@@ -502,6 +516,27 @@ const AccessoriesPage = ({ onBack, showHeader = true }) => {
                           className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
                         />
                       </div>
+                    </div>
+
+                    {/* Compatible Vehicles */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Compatible Vehicles
+                      </label>
+                      <select
+                        multiple
+                        value={editForm.vehicles}
+                        onChange={(e) => setEditForm({ ...editForm, vehicles: Array.from(e.target.selectedOptions, option => parseInt(option.value)) })}
+                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-[#0d141b] dark:text-white"
+                        style={{ height: '120px' }}
+                      >
+                        {vehicles.map(vehicle => (
+                          <option key={vehicle.id} value={vehicle.id}>
+                            {vehicle.make} {vehicle.model} ({vehicle.license_plate})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-500 mt-1">Hold Ctrl/Cmd to select multiple vehicles</p>
                     </div>
 
                     {/* Edit Mode Buttons */}

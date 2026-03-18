@@ -6,6 +6,7 @@ import RepairRecordModal from '../component/RepairRecordModal';
 import RepairRecordsReport from '../component/RepairRecordsReport';
 import UserProfileDropdown from '../component/UserProfileDropdown';
 import UserProfileModal from '../component/UserProfileModal';
+import PrevisionChatWidget from '../component/PrevisionChatWidget';
 import AccessoriesPage from './AccessoriesPage';
 import { isMechanic, vehiclesAPI, accessoriesAPI, messagesAPI, authAPI, breakdownsAPI } from '../service/api';
 
@@ -754,7 +755,7 @@ const CloseButton = styled.button`
   }
 `;
 
-const TechnicianDashboard = ({ onLogout, currentUser }) => {
+const TechnicianDashboard = ({ onLogout, currentUser, onOpenPrevision, onOpenFuelUsage }) => {
   const [activeSection, setActiveSection] = useState('overview');
   const [isAddAccessoryModalOpen, setIsAddAccessoryModalOpen] = useState(false);
   const [isBreakdownModalOpen, setIsBreakdownModalOpen] = useState(false);
@@ -778,6 +779,7 @@ const TechnicianDashboard = ({ onLogout, currentUser }) => {
     { id: 'breakdowns', label: 'Breakdowns', icon: 'alert-triangle' },
     { id: 'repairs', label: 'Repairs', icon: 'settings' },
     { id: 'stock', label: 'Stock Management', icon: 'package' },
+    { id: 'fuel', label: 'Fuel', icon: 'droplet', isFuel: true },
   ];
 
   // Calculate KPIs from real data
@@ -1019,7 +1021,13 @@ const TechnicianDashboard = ({ onLogout, currentUser }) => {
                 className={activeSection === item.id ? 'active' : ''}
                 onClick={(e) => {
                   e.preventDefault();
-                  setActiveSection(item.id);
+                  if (item.isPrevision && onOpenPrevision) {
+                    onOpenPrevision();
+                  } else if (item.isFuel && onOpenFuelUsage) {
+                    onOpenFuelUsage();
+                  } else {
+                    setActiveSection(item.id);
+                  }
                 }}
               >
                 <i data-feather={item.icon} className="fi-icon"></i>
@@ -1399,6 +1407,9 @@ const TechnicianDashboard = ({ onLogout, currentUser }) => {
           </ModalContainer>
         </ModalOverlay>
       )}
+
+      {/* Prevision AI Chat Widget */}
+      <PrevisionChatWidget vehicles={vehicles} />
     </Container>
   );
 };

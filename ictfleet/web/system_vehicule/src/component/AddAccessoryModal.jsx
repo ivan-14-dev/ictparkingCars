@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import Modal from './Modal';
 import InputField from './InputField';
-import { accessoriesAPI } from '../service/api';
+import { accessoriesAPI, vehiclesAPI } from '../service/api';
 
 const UploadSection = styled.div`
   margin-bottom: 2rem;
@@ -174,13 +174,31 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
     price: '',
     stock_level: '',
     image: null,
-    receipt: null
+    receipt: null,
+    vehicles: []
   });
 
   const [imagePreview, setImagePreview] = useState(null);
   const [receiptPreview, setReceiptPreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [vehicles, setVehicles] = useState([]);
+
+  // Fetch vehicles for selection
+  useEffect(() => {
+    const fetchVehicles = async () => {
+      try {
+        const response = await vehiclesAPI.getVehicles();
+        const vehiclesData = response.results || response;
+        setVehicles(vehiclesData);
+      } catch (error) {
+        console.error('Error fetching vehicles:', error);
+      }
+    };
+    if (isOpen) {
+      fetchVehicles();
+    }
+  }, [isOpen]);
 
   const categoryOptions = [
     { value: 'tires', label: 'Tires' },
@@ -215,6 +233,14 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
       }));
       setImagePreview(URL.createObjectURL(file));
     }
+  };
+
+  const handleVehicleChange = (e) => {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+    setFormData(prev => ({
+      ...prev,
+      vehicles: selectedOptions
+    }));
   };
 
   const handleReceiptChange = (e) => {
@@ -292,7 +318,8 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
         supplier: '',
         location: '',
         image: null,
-        receipt: null
+        receipt: null,
+        vehicles: []
       });
       setImagePreview(null);
       setErrors({});
@@ -321,7 +348,8 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
       supplier: '',
       location: '',
       image: null,
-      receipt: null
+      receipt: null,
+      vehicles: []
     });
     setImagePreview(null);
     setReceiptPreview(null);
@@ -522,6 +550,31 @@ const AddAccessoryModal = ({ isOpen, onClose, onAccessoryAdded }) => {
               }}
             />
             {errors.stock_level && <ErrorMessage>{errors.stock_level}</ErrorMessage>}
+          </FormField>
+
+          <FormField>
+            <FieldLabel htmlFor="vehicles">Compatible Vehicles</FieldLabel>
+            <select
+              id="vehicles"
+              multiple
+              value={formData.vehicles}
+              onChange={handleVehicleChange}
+              style={{
+                padding: '0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                fontSize: '0.875rem',
+                width: '100%',
+                height: '120px'
+              }}
+            >
+              {vehicles.map(vehicle => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {vehicle.make} {vehicle.model} ({vehicle.license_plate})
+                </option>
+              ))}
+            </select>
+            <FieldHelp>Hold Ctrl/Cmd to select multiple vehicles</FieldHelp>
           </FormField>
 
           {/* <FormField>

@@ -88,8 +88,8 @@
 
 <h2>Technologies (à adapter)</h2>
 <ul>
-  <li>Frontend : React, Flutter, JavaFX, Tkinter</li>
-  <li>Backend : Node.js, Django, Spring Boot</li>
+  <li>Frontend : React</li>
+  <li>Backend : Django</li>
   <li>Base de données : MySQL, PostgreSQL, SQLite</li>
   <li>Authentification : JWT, Sessions</li>
   <li>Notifications : Email, Push, In-app</li>
@@ -121,7 +121,7 @@ python manage.py runserver</pre>
 
 <h2>Améliorations Futures</h2>
 <ul>
-  <li>Géolocalisation des véhicules</li>
+  <li>Géolocalisation des véhicules a venir</li>
   <li>QR code pour chaque véhicule</li>
   <li>Historique détaillé des pièces</li>
   <li>Export PDF des rapports</li>

@@ -121,6 +121,8 @@ class Accessory(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
+    vehicles = models.ManyToManyField('Vehicle', blank=True, related_name='accessories', 
+                                       help_text='Vehicles this accessory can be used for')
     
     def __str__(self):
         return self.name
@@ -254,7 +256,7 @@ class Activity(models.Model):
 
 
 class Breakdown(models.Model):
-    """Vehicle breakdown reports submitted by mechanics"""
+    """Vehicle breakdown reports submitted by mechanics or drivers"""
     STATUS_CHOICES = [
         ('reported', 'Reported'),
         ('acknowledged', 'Acknowledged'),
@@ -266,7 +268,7 @@ class Breakdown(models.Model):
     mechanic = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reported_breakdowns')
     title = models.CharField(max_length=200)
     description = models.TextField()
-    image = models.ImageField(upload_to='breakdown_images/', blank=True, null=True)
+    images = models.JSONField(default=list, blank=True)  # Store multiple image URLs as a list
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='reported')
     reported_at = models.DateTimeField(default=timezone.now)
     resolved_at = models.DateTimeField(blank=True, null=True)
@@ -299,6 +301,11 @@ class RepairRecord(models.Model):
     completed_at = models.DateTimeField(default=timezone.now)
     reviewed_at = models.DateTimeField(blank=True, null=True)
     reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_repairs')
+    # Driver verification fields
+    driver_verified = models.BooleanField(default=False)
+    driver_verified_at = models.DateTimeField(blank=True, null=True)
+    driver_verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_repairs')
+    driver_comments = models.TextField(blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -307,3 +314,27 @@ class RepairRecord(models.Model):
     
     class Meta:
         ordering = ['-completed_at']
+
+
+class FuelUsage(models.Model):
+    """Model for tracking fuel usage per vehicle"""
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='fuel_usage')
+    driver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='fuel_records')
+    date = models.DateField()
+    liters = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount of fuel in liters")
+    price_per_liter = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price per liter")
+    total_cost = models.DecimalField(max_digits=12, decimal_places=2, blank=True)
+    odometer = models.IntegerField(help_text="Odometer reading at time of fill-up")
+    location = models.CharField(max_length=200, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    def save(self, *args, **kwargs):
+        self.total_cost = self.liters * self.price_per_liter
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.vehicle.license_plate} - {self.date} - {self.liters}L"
+    
+    class Meta:
+        ordering = ['-date']

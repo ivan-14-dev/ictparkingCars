@@ -4,22 +4,44 @@ from api import models
 
 class AccessorySerializer(serializers.ModelSerializer):
     image_url = serializers.ImageField(source='image', read_only=True)
-
+    vehicles = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=models.Vehicle.objects.all(), 
+        required=False,
+        help_text='Vehicle IDs this accessory can be used for'
+    )
+    vehicle_details = serializers.SerializerMethodField()
+    
     class Meta:
         model = models.Accessory
         fields = [
             'id', 'name', 'description', 'price',
-            'stock_level', 'image', 'image_url', 'is_active', 'created_at', 'updated_at'
+            'stock_level', 'image', 'image_url', 'is_active', 'created_at', 'updated_at',
+            'vehicles', 'vehicle_details'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_vehicle_details(self, obj):
+        return [{"id": v.id, "name": f"{v.make} {v.model}", "license_plate": v.license_plate} for v in obj.vehicles.all()]
 
 
 class AccessoryListSerializer(serializers.ModelSerializer):
+    vehicles = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=models.Vehicle.objects.all(), 
+        required=False
+    )
+    vehicle_details = serializers.SerializerMethodField()
+    
     class Meta:
         model = models.Accessory
         fields = [
-            'id', 'name', 'description', 'price', 'stock_level', 'is_active', 'image', 'created_at', 'updated_at'
+            'id', 'name', 'description', 'price', 'stock_level', 'is_active', 'image', 'created_at', 'updated_at',
+            'vehicles', 'vehicle_details'
         ]
+    
+    def get_vehicle_details(self, obj):
+        return [{"id": v.id, "name": f"{v.make} {v.model}", "license_plate": v.license_plate} for v in obj.vehicles.all()]
 
 
 class StockAlertSerializer(serializers.ModelSerializer):

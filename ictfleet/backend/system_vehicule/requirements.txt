@@ -1,0 +1,10 @@
+Django
+djangorestframework
+djangorestframework-simplejwt
+django-filter
+django-cors-headers
+python-decouple
+PyJWT
+requests
+groq
+openpyxl

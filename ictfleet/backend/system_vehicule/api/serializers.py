@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Activity, Vehicle, MaintenanceHistory, Accessory, User, Breakdown, RepairRecord
+from .models import Activity, Vehicle, MaintenanceHistory, Accessory, User, Breakdown, RepairRecord, FuelUsage
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -48,13 +48,24 @@ class VehicleSerializer(serializers.ModelSerializer):
 
 class AccessorySerializer(serializers.ModelSerializer):
     """Serializer for Accessory model"""
+    vehicles = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=Vehicle.objects.all(), 
+        required=False,
+        help_text='Vehicle IDs this accessory can be used for'
+    )
+    vehicle_details = serializers.SerializerMethodField()
     
     class Meta:
         model = Accessory
         fields = [
             'id', 'name', 'description', 'price', 'stock_level', 'min_stock_level',
-            'supplier', 'image', 'is_active', 'created_at', 'updated_at'
+            'supplier', 'image', 'is_active', 'created_at', 'updated_at',
+            'vehicles', 'vehicle_details'
         ]
+    
+    def get_vehicle_details(self, obj):
+        return [{"id": v.id, "name": f"{v.make} {v.model}", "license_plate": v.license_plate} for v in obj.vehicles.all()]
 
 
 class ActivitySerializer(serializers.ModelSerializer):
@@ -115,22 +126,37 @@ class BreakdownSerializer(serializers.ModelSerializer):
         model = Breakdown
         fields = [
             'id', 'vehicle', 'vehicle_info', 'mechanic', 'mechanic_name',
-            'title', 'description', 'image', 'status', 'reported_at',
+            'title', 'description', 'images', 'status', 'reported_at',
             'resolved_at', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at', 'reported_at']
 
 
 class BreakdownCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating breakdowns with image"""
+    """Serializer for creating breakdowns with multiple images"""
+    images = serializers.ListField(
+        child=serializers.ImageField(required=False),
+        required=False,
+        default=list
+    )
     
     class Meta:
         model = Breakdown
-        fields = ['vehicle', 'title', 'description', 'image']
+        fields = ['vehicle', 'title', 'description', 'images']
     
     def create(self, validated_data):
-        # Set the mechanic from the request user
+        # Handle images - convert to JSON list of URLs
+        images = validated_data.pop('images', [])
+        image_urls = []
+        
+        for img in images:
+            if hasattr(img, 'url'):
+                image_urls.append(img.url)
+        
+        # Set the reporter from the request user
         validated_data['mechanic'] = self.context['request'].user
+        validated_data['images'] = image_urls
+        
         return super().create(validated_data)
 
 
@@ -140,6 +166,7 @@ class RepairRecordSerializer(serializers.ModelSerializer):
     vehicle_info = serializers.CharField(source='vehicle.__str__', read_only=True)
     accessories_names = serializers.SerializerMethodField(read_only=True)
     reviewed_by_name = serializers.CharField(source='reviewed_by.get_full_name', read_only=True)
+    driver_verified_by_name = serializers.CharField(source='driver_verified_by.get_full_name', read_only=True)
     
     class Meta:
         model = RepairRecord
@@ -147,9 +174,10 @@ class RepairRecordSerializer(serializers.ModelSerializer):
             'id', 'vehicle', 'vehicle_info', 'mechanic', 'mechanic_name',
             'title', 'description', 'work_images', 'accessories_used', 'accessories_names',
             'status', 'completed_at', 'reviewed_at', 'reviewed_by', 'reviewed_by_name',
-            'created_at', 'updated_at'
+            'driver_verified', 'driver_verified_at', 'driver_verified_by', 'driver_verified_by_name',
+            'driver_comments', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'completed_at', 'reviewed_at', 'reviewed_by']
+        read_only_fields = ['created_at', 'updated_at', 'completed_at', 'reviewed_at', 'reviewed_by', 'driver_verified_at', 'driver_verified_by']
     
     def get_accessories_names(self, obj):
         return [{'id': a.id, 'name': a.name} for a in obj.accessories_used.all()]
@@ -179,5 +207,26 @@ class RepairRecordCreateSerializer(serializers.ModelSerializer):
             repair_record.accessories_used.set(accessories)
         
         return repair_record
+
+
+class FuelUsageSerializer(serializers.ModelSerializer):
+    """Serializer for FuelUsage model"""
+    driver_name = serializers.CharField(source='driver.get_full_name', read_only=True)
+    vehicle_info = serializers.CharField(source='vehicle.__str__', read_only=True)
+    
+    class Meta:
+        model = FuelUsage
+        fields = [
+            'id', 'vehicle', 'vehicle_info', 'driver', 'driver_name',
+            'date', 'liters', 'price_per_liter', 'total_cost',
+            'odometer', 'location', 'notes', 'created_at'
+        ]
+        read_only_fields = ['total_cost', 'created_at']
+    
+    def create(self, validated_data):
+        # Set the driver from the request user
+        if 'driver' not in validated_data:
+            validated_data['driver'] = self.context['request'].user
+        return super().create(validated_data)
 
 

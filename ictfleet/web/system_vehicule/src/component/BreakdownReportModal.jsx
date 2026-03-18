@@ -168,6 +168,50 @@ const FilePreview = styled.div`
   color: #10b981;
 `;
 
+const ImagePreviewsContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+`;
+
+const ImagePreviewItem = styled.div`
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 2px solid #e5e7eb;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+const RemoveImageButton = styled.button`
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  
+  &:hover {
+    background-color: #dc2626;
+  }
+`;
+
 const ButtonGroup = styled.div`
   display: flex;
   gap: 1rem;
@@ -241,11 +285,11 @@ const BreakdownReportModal = ({ isOpen, onClose, onSuccess }) => {
     vehicle: '',
     title: '',
     description: '',
-    image: null,
+    images: [],
   });
   
   const [vehicles, setVehicles] = useState([]);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(false);
@@ -274,15 +318,28 @@ const BreakdownReportModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFormData(prev => ({ ...prev, image: file }));
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      const newImages = [...formData.images, ...files];
+      setFormData(prev => ({ ...prev, images: newImages }));
+      
+      // Create previews for new images
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreviews(prev => [...prev, reader.result]);
+        };
+        reader.readAsDataURL(file);
+      });
     }
+  };
+  
+  const removeImage = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const validateForm = () => {
@@ -315,9 +372,10 @@ const BreakdownReportModal = ({ isOpen, onClose, onSuccess }) => {
       data.append('vehicle', formData.vehicle);
       data.append('title', formData.title);
       data.append('description', formData.description);
-      if (formData.image) {
-        data.append('image', formData.image);
-      }
+      // Append multiple images
+      formData.images.forEach(img => {
+        data.append('images', img);
+      });
 
       const response = await vehiclesAPI.reportBreakdown(data);
       
@@ -339,9 +397,9 @@ const BreakdownReportModal = ({ isOpen, onClose, onSuccess }) => {
       vehicle: '',
       title: '',
       description: '',
-      image: null,
+      images: [],
     });
-    setImagePreview(null);
+    setImagePreviews([]);
     setErrors({});
     setSuccess(false);
     onClose();
@@ -414,26 +472,37 @@ const BreakdownReportModal = ({ isOpen, onClose, onSuccess }) => {
           </FormGroup>
 
           <FormGroup>
-            <Label>Breakdown Image</Label>
+            <Label>Breakdown Images (Multiple)</Label>
             <FileInputWrapper>
               <FileInput
                 type="file"
-                id="image"
+                id="images"
                 accept="image/*"
+                multiple
                 onChange={handleImageChange}
                 disabled={loading}
               />
               <FileInputButton
                 type="button"
-                onClick={() => document.getElementById('image').click()}
+                onClick={() => document.getElementById('images').click()}
                 disabled={loading}
               >
-                📷 Click to upload image
+                📷 Click to upload images
               </FileInputButton>
             </FileInputWrapper>
-            {imagePreview && (
+            {imagePreviews.length > 0 && (
+              <ImagePreviewsContainer>
+                {imagePreviews.map((preview, index) => (
+                  <ImagePreviewItem key={index}>
+                    <img src={preview} alt={`Preview ${index + 1}`} />
+                    <RemoveImageButton type="button" onClick={() => removeImage(index)}>×</RemoveImageButton>
+                  </ImagePreviewItem>
+                ))}
+              </ImagePreviewsContainer>
+            )}
+            {formData.images.length > 0 && (
               <FilePreview>
-                ✓ Image selected: {formData.image?.name}
+                ✓ {formData.images.length} image(s) selected
               </FilePreview>
             )}
           </FormGroup>

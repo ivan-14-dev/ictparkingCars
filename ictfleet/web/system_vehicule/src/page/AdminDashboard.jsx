@@ -11,6 +11,8 @@ import NotificationsPage from './NotificationsPage';
 import AccessoriesPage from './AccessoriesPage';
 import UserManagementPage from './UserManagementPage';
 import ReportsPage from './ReportsPage';
+import PrevisionChatWidget from '../component/PrevisionChatWidget';
+import FuelUsagePage from './FuelUsagePage';
 import { vehiclesAPI, accessoriesAPI, notificationsAPI, messagesAPI, activitiesAPI, isAdmin } from '../service';
 import { authAPI } from '../service/api';
 
@@ -1735,7 +1737,7 @@ const FooterButton = styled.button`
 `;
 
 // Admin Dashboard Component
-const AdminDashboard = ({ onLogout, currentUser }) => {
+const AdminDashboard = ({ onLogout, currentUser, onOpenPrevision, onOpenFuelUsage, showFuelUsage, onCloseFuelUsage }) => {
   const [activeSection, setActiveSection] = useState('overview');
   const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
@@ -1907,6 +1909,7 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
     { id: 'breakdowns', label: 'Breakdowns', icon: 'alert-circle' },
     { id: 'messages', label: 'Messages', icon: 'message-circle' },
     { id: 'reports', label: 'Reports', icon: 'bar-chart' },
+    { id: 'fuel', label: 'Fuel', icon: 'droplet', isFuel: true },
   ];
 
   // Calculate KPI data from API data
@@ -2271,9 +2274,16 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
                 key={item.id}
                 href="#"
                 className={activeSection === item.id ? 'active' : ''}
+                style={item.isPrevision ? { background: 'linear-gradient(135deg, rgba(16, 163, 127, 0.15), rgba(5, 150, 105, 0.15))', borderLeft: '3px solid #10a37f' } : item.isFuel ? { background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.15))', borderLeft: '3px solid #f59e0b' } : {}}
                 onClick={(e) => {
                   e.preventDefault();
-                  setActiveSection(item.id);
+                  if (item.isPrevision && onOpenPrevision) {
+                    onOpenPrevision();
+                  } else if (item.isFuel) {
+                    setActiveSection('fuel');
+                  } else {
+                    setActiveSection(item.id);
+                  }
                 }}
               >
                 <i data-feather={item.icon} className="fi-icon"></i>
@@ -2445,6 +2455,13 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
             <AccessoriesPage
               onBack={() => setActiveSection('overview')}
               showHeader={false}
+            />
+          )}
+
+          {activeSection === 'fuel' && (
+            <FuelUsagePage
+              onBack={() => setActiveSection('overview')}
+              embedded={true}
             />
           )}
 
@@ -2767,6 +2784,9 @@ const AdminDashboard = ({ onLogout, currentUser }) => {
         currentUser={currentUser}
         onProfileUpdate={handleProfileUpdate}
       />
+
+      {/* Prevision AI Chat Widget - Always visible */}
+      <PrevisionChatWidget vehicles={vehicles} />
 
     </Container>
   );
