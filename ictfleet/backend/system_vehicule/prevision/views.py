@@ -4,6 +4,8 @@ Integrates Groq API for AI-powered fleet management assistant
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import json
 from django.http import JsonResponse
 from django.views import View

@@ -8,3 +8,4 @@ PyJWT
 requests
 groq
 openpyxl
+python-dotenv
